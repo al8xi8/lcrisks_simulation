@@ -10,18 +10,18 @@ library(here)
 
 # --- Load Data ---
 getwd()
-setwd("/Users/al8xi8/Documents/GitHub/Comorbidity_Project")
+setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
 
 # GitHub
-zip_path <- "/Users/al8xi8/Documents/GitHub/Comorbidity_Project/datasets/nhis_lcrisks.csv.zip"
-csv_path <- "/Users/al8xi8/Documents/GitHub/Comorbidity_Project/datasets/nhis_lcrisks.csv"
+zip_path <- "/Users/al8xi8/Documents/GitHub/lcrisks_simulation/datasets/nhis_lcrisks.csv.zip"
+csv_path <- "/Users/al8xi8/Documents/GitHub/lcrisks_simulation/datasets/nhis_lcrisks.csv"
 if (!file.exists(csv_path)) {
-  unzip(zip_path, exdir = "/Users/al8xi8/Documents/GitHub/Comorbidity_Project/datasets")
+  unzip(zip_path, exdir = "/Users/al8xi8/Documents/GitHub/lcrisks_simulation/datasets")
 }
 library(readr)
 nhis_lcrisks <- read_csv(csv_path)
 
-# optional: download and unzip manually on Desktop
+# optional: download and unzip data manually on Desktop
 nhis_lcrisks <- read_csv("~/Desktop/nhis_lcrisks.csv")
 
 
