@@ -64,8 +64,6 @@ lifetable<-function(inp,d){ #d-disutilities related to treatment only
   }
   #set up input for lcrisk function
   #read in comorbidity 
-
-
   
   
   end = 100
