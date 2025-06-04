@@ -1,0 +1,13 @@
+# Datasets Folder
+
+This folder contains input data for the LCrisks microsimulation model.
+
+## Compressed Files
+
+- **expanded_data.csv.zip**  
+  Compressed version of the weight-expanded synthetic population input dataset. Unzip before use.
+
+- **nhis_lcrisks.csv.zip**  
+  Compressed raw NHIS dataset (2010–2023) containing unprocessed variables from IPUMS NHIS. Unzip before preprocessing or recoding.
+
+> 📌 To use: unzip files manually or with `unzip` / `gunzip` in your terminal.
