@@ -2,8 +2,6 @@
 
 🧠 **Incorporating Comorbidity Data into Lung Cancer Risk Modeling Using NHIS: A Microsimulation-Based Approach**
 
-**Spring–Summer 2025**
-
 This project aims to improve the realism and precision of lung cancer screening evaluations by integrating individual-level comorbidity data into a validated microsimulation model. Using survey data from the Integrated Public Use Microdata Series (IPUMS) National Health Interview Survey (NHIS) spanning 2010–2023, the project constructs a synthetic U.S. population that reflects diverse health profiles, including smoking history, demographic characteristics, and chronic disease burden.
 
 The core objective is to simulate lung cancer incidence and outcomes under different screening policies—such as USPSTF guidelines—while accounting for competing risks of death from comorbid conditions like COPD, heart disease, and diabetes. By incorporating these comorbidities into the LCrisks lung cancer microsimulation framework, the project evaluates how real-world health complexities influence screening effectiveness, survival benefit, and potential harms.
