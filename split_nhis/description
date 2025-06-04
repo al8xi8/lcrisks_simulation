@@ -1,5 +1,0 @@
-These 192 files are partitioned subsets of the full "expanded_data.csv" dataset, which represents the weight-expanded, imputed NHIS population cohort used for LCrisks simulation.
-
-Each file (e.g., nhis_000.csv, nhis_001.csv, ..., nhis_191.csv) contains a portion of the full dataset to enable parallel processing, reduced memory usage, and scalable simulation workflows.
-
-All files follow the same structure and column order as defined in column_order_reference.csv, ensuring compatibility with the LCrisks model.
