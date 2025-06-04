@@ -1,4 +1,4 @@
-# Comorbidity_Project (IN PROGRESS)
+# Comorbidity_Project
 
 🧠 **Incorporating Comorbidity Data into Lung Cancer Risk Modeling Using NHIS: A Microsimulation-Based Approach**
 
