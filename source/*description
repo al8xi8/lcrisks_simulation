@@ -1,0 +1,26 @@
+"LCSpecMortality.R"
+-Defines lung cancer–specific mortality functions by histology and stage, using survival curves derived from U.S. population data.
+
+"histology.R"
+-Assigns histologic subtype (e.g., adenocarcinoma, squamous, small cell) based on risk profiles and random sampling. Essential for stratifying downstream mortality and treatment outcomes.
+
+"followup_new.R"
+-Simulates clinical follow-up outcomes after lung cancer detection, including stage progression, diagnosis timing, and transition probabilities for detected vs. undetected cases.
+
+"treatment.R"
+-Models treatment-related survival effects based on histology and stage. Incorporates differences in mortality by treatment receipt, including surgery and systemic therapy.
+
+"lifetable_LCRAT.R"
+-Provides modified life table calculations tailored to the LCrisks model. Estimates all-cause mortality probabilities using demographic and comorbidity-adjusted life tables.
+
+"screening_core.R"
+-Implements the core logic of the lung cancer screening intervention, including eligibility, screening frequency, detection rates, and outcome adjustments based on screening arm.
+
+"screening_newages.R"
+-Variant of the screening core logic that supports age-specific policy simulations or alternate screening guidelines. Allows flexible testing of non-standard age ranges.
+
+"stage_pst.R"
+-Predicts clinical stage at lung cancer diagnosis for both screened and unscreened individuals, accounting for lead-time bias and differential stage shift under screening.
+
+"global_lungrads.R"
+-Contains global variables, control flags, and parameter settings shared across all LCrisks functions — including lung-RADS thresholds, simulation settings, and risk model assumptions.
