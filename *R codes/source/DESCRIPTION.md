@@ -31,8 +31,6 @@ This folder contains modular R scripts that define the key components of the LCr
 - **`global_lungrads.R`**  
   Stores shared global variables and parameter settings for the LCrisks model, including Lung-RADS thresholds, simulation constants, and control switches used across scripts.
 
-------
-
 - **`hist_mod_sm.csv`**  
   Contains estimated coefficients from a multinomial logistic regression model predicting histologic subtype (e.g., adenocarcinoma, squamous cell, small cell).  
   Each row corresponds to a predictor variable and its estimated effect on a specific histology category (e.g., `Response = 2, 3, 4`). Columns include:
