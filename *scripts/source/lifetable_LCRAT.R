@@ -1,9 +1,15 @@
 
+### Life Table Function for Lung Cancer Risk Assessment Tool (LCRAT) ###
+
+getwd()
+setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
+
 # --- Load Libraries and Packages ---
 install.packages("VGAM")
+install.packages("/Users/al8xi8/Documents/GitHub/lcrisks_simulation/lcrisks_package", repos = NULL, type = "source")
 library(VGAM)
-install.packages("~/Box/Alexandra/Comorbidity/simulationcode/lcrisks_package", repos = NULL, type = "source")
 library(lcrisks)
+
 
 lifetable<-function(inp,d){ #d-disutilities related to treatment only
   #return a person's life table with respect to clinical and preclinical lung cancer histology and stage, lung cancer related death or other-causes death

@@ -1,16 +1,22 @@
 
+### Simulating Lung Cancer Screening and No-Screening Scenarios Using the LCrisks Model and Split NHIS Input Data ###
+
 rm(list = ls())
 library(lcrisks)
 
-source("LCSpecMortality.R")
-source("histology.R")
-source("followup_new.R")
-source("treatment.R")
-source("lifetable_LCRAT.R")
-source("screening_core.R")
-source("screening_newages.R")
-source("stage_pst.R")
-source("global_lungrads.R")
+# --- Load Functions ---
+getwd()
+setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
+
+source("*scripts/source/LCSpecMortality.R")
+source("*scripts/source/histology.R")
+source("*scripts/source/followup_new.R")
+source("*scripts/source/treatment.R")
+source("*scripts/source/lifetable_LCRAT.R")
+source("*scripts/source/screening_core.R")
+source("*scripts/source/screening_newages.R")
+source("*scripts/source/stage_pst.R")
+source("*scripts/source/global_lungrads.R")
 
 path1 = ""
 
