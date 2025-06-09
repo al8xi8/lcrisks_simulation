@@ -1,4 +1,4 @@
-# LCrisks Model Scripts
+# LCrisks Model Scripts (to be edited)
 
 This folder contains modular R scripts that define the key components of the LCrisks lung cancer microsimulation model.
 
