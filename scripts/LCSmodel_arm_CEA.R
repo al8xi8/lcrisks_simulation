@@ -8,15 +8,15 @@ library(lcrisks)
 getwd()
 setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
 
-source("*scripts/source/LCSpecMortality.R")
-source("*scripts/source/histology.R")
-source("*scripts/source/followup_new.R")
-source("*scripts/source/treatment.R")
-source("*scripts/source/lifetable_LCRAT.R")
-source("*scripts/source/screening_core.R")
-source("*scripts/source/screening_newages.R")
-source("*scripts/source/stage_pst.R")
-source("*scripts/source/global_lungrads.R")
+source("scripts/source/LCSpecMortality.R")
+source("scripts/source/histology.R")
+source("scripts/source/followup_new.R")
+source("scripts/source/treatment.R")
+source("scripts/source/lifetable_LCRAT.R")
+source("scripts/source/screening_core.R")
+source("scripts/source/screening_newages.R")
+source("scripts/source/stage_pst.R")
+source("scripts/source/global_lungrads.R")
 
 path1 = ""
 
@@ -28,6 +28,7 @@ LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: bu
   
   #AC
   #modify k1 to read in the split data correctly from 000 to 191
+  k <- 0
   if (k < 10) {
     k1 = paste0("00", k)
   } else if (k < 100) {
@@ -38,7 +39,7 @@ LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: bu
   #AC
   #revise this part to read in our own NHIS split data:
   inp = read.table(
-    file = paste0("split_nhis/nhis_", k1, ".csv"),
+    file = paste0("datasets/split_nhis/nhis_", k1, ".csv"),
     header = FALSE,
     sep = ",",
     stringsAsFactors = FALSE,
