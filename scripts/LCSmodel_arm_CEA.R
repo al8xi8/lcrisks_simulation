@@ -70,7 +70,7 @@ LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: bu
     out1 = rbind(out1, as.numeric(unlist(output1[1:12])))
   }
   
-  if(k%%1000==0){print(paste0("###################finished running", k, "individuals"))
+  if(k%%1000==0){print(paste0("###################finished running", k, "individuals"))}
 
   write.table(out1, paste("output_noscrn/no_scrn_",k,".csv",sep=""), row.names = FALSE, col.names = FALSE, sep = ",")
 }
@@ -159,7 +159,7 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
 
 ---
   
-#LCSmodel_noscrn(1,1,1,0) #run this line to test the no screening scenario
+LCSmodel_noscrn(1,1,1,0) #run this line to test the no screening scenario
   
 library(parallel)
 
