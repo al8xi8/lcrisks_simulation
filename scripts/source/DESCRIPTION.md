@@ -49,7 +49,9 @@ This folder contains modular R scripts and supporting data files for the LCrisks
   - `StdErr`, `WaldChiSq`, `ProbChiSq`: Statistical measures for each predictor
 
 - **`lung cancer specific mortality.csv`**  
-  Provides stage- and histology-specific hazard ratios or survival parameters. Used in `LCSpecMortality.R` to customize mortality curves and support sensitivity analyses on survival assumptions.
+  Contains survival coefficients or parameters by histology and stage.  
+  - Used in: `LCSpecMortality.R`, referenced from `global_lungrads.R`
+  - Role: Defines lung cancer–specific mortality curves for microsimulation.
 
 ---
 
