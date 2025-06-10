@@ -180,8 +180,9 @@ lifetable<-function(inp,d){ #d-disutilities related to treatment only
   
   #conditional survival
   ocdsurv = ocdsurv/ocdsurv[1]
-  
-  
+
+  #lung cancer risk
+  lc_prob = lungcancer[,5]/1000
   
   ########################################
   #other cause mortality - lcrisks package
