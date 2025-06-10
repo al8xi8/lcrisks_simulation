@@ -92,9 +92,15 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
   fuy2 = matrix(0,ncol = 9*(scredage-scrstage+1), nrow = 1, byrow = TRUE)
   simTime=100
   
+  #AC
   #read split data in to get starting age
   k1=k
-  inp=read.table(file=paste("split_cessage/Francedata_",k1,".csv",sep=""),header=FALSE,sep=',',stringsAsFactors = FALSE,colClasses = c(c("character","numeric","integer","character",rep("numeric",11)),rep("NULL",29)))
+  inp = read.table(
+    file = paste0("datasets/split_nhis/nhis_", k1, ".csv"),
+    header = FALSE,
+    sep = ",",
+    colClasses = rep("numeric", 24)
+  )
   
   #input parameter list for screening() function
   input2 = read.csv(paste0(path1,"output_noscrn_ocdfromlcrisk_cessage/no_scrn_",k,".csv"),sep=",",header=T)
