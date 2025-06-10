@@ -89,7 +89,14 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
   
   #AC
   #read split data in to get starting age
-  k1=k
+  k1 = k
+  if (k < 10) {
+    k1 = paste0("00", k)
+  } else if (k < 100) {
+    k1 = paste0("0", k)
+  } else {
+    k1 = as.character(k)
+  }  
   inp = read.table(
     file = paste0("datasets/split_nhis/nhis_", k1, ".csv"),
     header = FALSE,
@@ -98,11 +105,11 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
   )
   
   #input parameter list for screening() function
-  input2 = read.csv(paste0(path1,"output_noscrn_ocdfromlcrisk_cessage/no_scrn_",k,".csv"),sep=",",header=T)
+  input2 = read.csv(paste0(path1,"output_noscrn/no_scrn_",k,".csv"),sep=",",header=T)
   input2 = cbind(input2[,1:9],0,input2[,10:ncol(input2)])
   
   #read in plco risk for each individual
-  plcorisk = read.csv(paste0("risk_plco/risk_",k,".csv"),sep=",",header=T)
+  #plcorisk = read.csv(paste0("risk_plco/risk_",k,".csv"),sep=",",header=T)
 
   #######################################################################
   #                           Overdiagnosis                             #
