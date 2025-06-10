@@ -70,6 +70,8 @@ LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: bu
     out1 = rbind(out1, as.numeric(unlist(output1[1:12])))
   }
   
+  if(k%%1000==0){print(paste0("###################finished running", k, "individuals"))
+
   write.table(out1, paste("output_noscrn/no_scrn_",k,".csv",sep=""), row.names = FALSE, col.names = FALSE, sep = ",")
 }
 
@@ -150,14 +152,14 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
     out2 = rbind(out2, as.numeric(c(input2[i,1], output2[1:15],age)))
     fuy2 = rbind(fuy2, output2[16:(16+numScrn-1)])
   }
-  #folder="output_55803015/"
-  write.table(out2, paste0(folder,"output_scrn_lcriskocd/scrn_tf",s,o,d,"_",simTime,"_",scrstage,"_",scredage,"_",scrpky,"_",scrqt,"_",coverage,"_",cessprob,"_",k,".csv"), row.names = FALSE, col.names = FALSE, sep = ",")
-  write.table(fuy2, paste0(folder,"output_scrn_lcriskocd/fuy_tf",s,o,d,"_",simTime,"_",scrstage,"_",scredage,"_",scrpky,"_",scrqt,"_",coverage,"_",cessprob,"_",k,".csv",sep=""), row.names = FALSE, col.names = FALSE, sep = ",")
+
+  write.table(out2, paste0(folder,"output_scrn/scrn_tf",s,o,d,"_",simTime,"_",scrstage,"_",scredage,"_",scrpky,"_",scrqt,"_",coverage,"_",cessprob,"_",k,".csv"), row.names = FALSE, col.names = FALSE, sep = ",")
+  write.table(fuy2, paste0(folder,"output_scrn/fuy_tf",s,o,d,"_",simTime,"_",scrstage,"_",scredage,"_",scrpky,"_",scrqt,"_",coverage,"_",cessprob,"_",k,".csv",sep=""), row.names = FALSE, col.names = FALSE, sep = ",")
 }
 
 ---
   
-LCSmodel_noscrn(1,1,1,0) #run this line to test the no screening scenario
+#LCSmodel_noscrn(1,1,1,0) #run this line to test the no screening scenario
   
 library(parallel)
 
@@ -165,21 +167,7 @@ ncores <- 100
 
 cl <- makeCluster(ncores,type="FORK")
 
-#s, o, d, k, cessprob, coverage, birthcohort, scrstage, scredage, scrpky, scrqt
-#Pack year
-#a=cbind(scrstage,scredage,scrpky,scrqt)
-#clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),24), scrstage=rep(c(50,50,55,55),each=177*6), scredage=rep(c(74,80,74,80),each=177*6), scrpky=rep(rep(c(20,30),each=177*3),4), scrqt=rep(rep(c(10,15,99),each=177),8), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960))
-
-# clusterMap(cl, LCSmodel_scrn, k=rep(c(0:9),24), scrstage=rep(c(50,50,55,55),each=10*6), scredage=rep(c(74,80,74,80),each=10*6), scrpky=rep(rep(c(20,30),each=10*3),4), scrqt=rep(rep(c(10,15,99),each=10),8), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960))
-#nelson
-# clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),12), scrstage=rep(c(50,50,55,55),each=177*3), scredage=rep(c(74,80,74,80),each=177*3), scrqt=rep(rep(c(10,15,99),each=177),4), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960,scrpky="NELSON"))
-#plco
-# clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),12), scrstage=rep(c(50,50,55,55),each=177*3), scredage=rep(c(74,80,74,80),each=177*3), scrqt=rep(rep(c(0.01,0.015,0.02),each=177),4), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960, scrpky="PLCO"))
-
-# clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),12), scrstage=rep(c(50,50,55,55),each=177*3), scredage=rep(c(74,80,74,80),each=177*3), scrqt=rep(rep(c(0.005, 0.0072, 0.008),each=177),4), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960, scrpky="PLCO"))
-
-#pilot
-# clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),2), scredage=rep(c(74,80),each=177), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960,  scrstage=50,  scrqt=15, scrpky="Pilot"))
+clusterMap(cl, LCSmodel_scrn, k=c(0:191), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960, scrstage=50, scredage=80, scrpky=20, scrqt=15))
 
 stopCluster(cl)
 
