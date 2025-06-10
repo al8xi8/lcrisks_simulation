@@ -29,7 +29,7 @@ LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: bu
   
   #AC
   #modify k1 to read in the split data correctly from 000 to 191
-  k <- 0
+  k1 = k
   if (k < 10) {
     k1 = paste0("00", k)
   } else if (k < 100) {
@@ -82,11 +82,6 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
     init_f <<- 1.13
     init_m <<- 1.26
   }
-  else if(birthcohort==1950){
-    init_f <<- 1.54
-    init_m <<- 1.65
-  }
-  
   
   out2 = matrix(0,ncol = 17, nrow = 1, byrow = TRUE)
   fuy2 = matrix(0,ncol = 9*(scredage-scrstage+1), nrow = 1, byrow = TRUE)
