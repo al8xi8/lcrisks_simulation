@@ -223,12 +223,14 @@ discount = exp(-0.03)#1/1.03
 #######################################################################
 #                           Input Data                                #
 #######################################################################
+setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
+
 ###### Histology model
 #parameter for lung cancer specific mortality model
-parameter = read.csv(file='lung cancer specific mortality.csv', head=TRUE,sep=",")
+parameter = read.csv(file="scripts/source/lung_cancer_specific_mortality.csv", head=TRUE,sep=",")
 #coefficients for lung cancer histology model
 #hist_mod includes family history
-hist.mod = as.matrix(read.csv(file="hist_mod_sm.csv",header=FALSE,sep=","))
+hist.mod = as.matrix(read.csv(file="scripts/source/hist_mod_sm.csv",header=FALSE,sep=","))
 coef <- matrix(0, ncol=8, nrow=3) #6 covariates, 7 including 2 levels of smking status, 1 intercept, 1 hist
 coef[,1]=c(2,3,4)
 for(i in 0:6){

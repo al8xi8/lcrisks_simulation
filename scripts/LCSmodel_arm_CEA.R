@@ -21,7 +21,7 @@ source("scripts/source/global_lungrads.R")
 path1 = ""
 
 #regular quit year constraint
-source("screening.R")
+source("scripts/source/screening.R")
 folder = ""
 
 LCSmodel_noscrn <- function(s, o, d, k){#s: specificity; o: overdiagnosis; d: burden; k: # of repetition
