@@ -155,7 +155,7 @@ LCSmodel_scrn <- function(s, o, d, k, cessprob, coverage, birthcohort, scrstage,
   write.table(fuy2, paste0(folder,"output_scrn_lcriskocd/fuy_tf",s,o,d,"_",simTime,"_",scrstage,"_",scredage,"_",scrpky,"_",scrqt,"_",coverage,"_",cessprob,"_",k,".csv",sep=""), row.names = FALSE, col.names = FALSE, sep = ",")
 }
 
-LCSmodel_noscrn <- function(1,1,1,0) #run this line to test the no screening scenario
+LCSmodel_noscrn(1,1,1,0) #run this line to test the no screening scenario
   
 library(parallel)
 
