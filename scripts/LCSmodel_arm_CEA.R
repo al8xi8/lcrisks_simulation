@@ -3,6 +3,7 @@
 
 rm(list = ls())
 library(lcrisks)
+library(VGAM)
 
 # --- Load Functions ---
 getwd()
@@ -169,3 +170,4 @@ cl <- makeCluster(ncores,type="FORK")
 # clusterMap(cl, LCSmodel_scrn, k=rep(c(0:176),2), scredage=rep(c(74,80),each=177), MoreArgs = list(s=1, o=1, d=1, cessprob=0, coverage=100, birthcohort=1960,  scrstage=50,  scrqt=15, scrpky="Pilot"))
 
 stopCluster(cl)
+

@@ -227,7 +227,7 @@ setwd("/Users/al8xi8/Documents/GitHub/lcrisks_simulation")
 
 ###### Histology model
 #parameter for lung cancer specific mortality model
-parameter = read.csv(file="scripts/source/lung_cancer_specific_mortality.csv", head=TRUE,sep=",")
+parameter = read.csv(file="scripts/source/lung cancer specific mortality.csv", head=TRUE,sep=",")
 #coefficients for lung cancer histology model
 #hist_mod includes family history
 hist.mod = as.matrix(read.csv(file="scripts/source/hist_mod_sm.csv",header=FALSE,sep=","))
