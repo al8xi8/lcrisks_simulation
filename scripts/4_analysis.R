@@ -150,7 +150,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
     janitor::adorn_ns() # No Screening
 
   table2_scrn <- scrn %>%
-    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat)) %>%
+    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat), !(Overdiagnosis == 1 & Dectected == 0)) %>%
     mutate(Stage = as.factor(Stage)) %>%
     janitor::tabyl(Stage, comorb_cat) %>%
     janitor::adorn_percentages("col") %>%
