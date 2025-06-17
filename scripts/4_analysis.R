@@ -140,26 +140,26 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
   
   
-## Table 2 #
+## Table 2 # (Exclude Stage 0)
   table2_noscrn <- noscrn %>%
-    filter(!is.na(Stage), !is.na(comorb_cat)) %>%
+    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat)) %>%
     mutate(Stage = as.factor(Stage)) %>%
-    tabyl(Stage, comorb_cat) %>%
-    adorn_percentages("col") %>%
-    adorn_pct_formatting(digits = 1) %>%
-    adorn_ns() # No Screening
+    janitor::tabyl(Stage, comorb_cat) %>%
+    janitor::adorn_percentages("col") %>%
+    janitor::adorn_pct_formatting(digits = 1) %>%
+    janitor::adorn_ns() # No Screening
 
   table2_scrn <- scrn %>%
-    filter(!is.na(Stage), !is.na(comorb_cat)) %>%
+    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat)) %>%
     mutate(Stage = as.factor(Stage)) %>%
-    tabyl(Stage, comorb_cat) %>%
-    adorn_percentages("col") %>%
-    adorn_pct_formatting(digits = 1) %>%
-    adorn_ns() # Screening
+    janitor::tabyl(Stage, comorb_cat) %>%
+    janitor::adorn_percentages("col") %>%
+    janitor::adorn_pct_formatting(digits = 1) %>%
+    janitor::adorn_ns() # Screening
   
   # Chi-square test
-  chisq2_noscrn <- chisq.test(table(noscrn$Stage, noscrn$comorb_cat))
-  chisq2_scrn <- chisq.test(table(scrn$Stage, scrn$comorb_cat))
+  chisq2_noscrn <- chisq.test(table(noscrn$Stage[noscrn$Stage != 0], noscrn$comorb_cat[noscrn$Stage != 0]))
+  chisq2_scrn <- chisq.test(table(scrn$Stage[scrn$Stage != 0], scrn$comorb_cat[scrn$Stage != 0]))
   
   # Output
   print(table2_noscrn)
@@ -169,13 +169,14 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   cat("Chi-square p-value (screening):", 
       format.pval(chisq2_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
  
-## Table 3 # 
+  
+## Table 3 # all cost mortality keep stage 0
   
   
-## Table 4 #
+## Table 4 # lung cancer diagnosis keep stage 0
   
   
-## Table 5 #
+## Table 5 #  (Exclude Stage 0)
   table5_noscrn <- noscrn %>%
     filter(!is.na(Histology), !is.na(comorb_cat)) %>%
     count(Histology, comorb_cat) %>%
