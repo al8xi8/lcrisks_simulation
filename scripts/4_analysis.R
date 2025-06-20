@@ -63,7 +63,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   colnames(noscrn)[1:length(noscrn_colnames)] <- noscrn_colnames
   
   # Remove unnamed columns (e.g. file_id or blank col at end)
-  noscrn <- noscrn[, !is.na(names(noscrn)) & names(noscrn) != ""]
+  #noscrn <- noscrn[, !is.na(names(noscrn)) & names(noscrn) != ""]
   
   # Assign row_id
   noscrn$row_id <- 1:nrow(noscrn)
@@ -102,7 +102,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   colnames(scrn)[1:length(scrn_colnames)] <- scrn_colnames
   
   # Remove unnamed columns
-  scrn <- scrn[, !is.na(names(scrn)) & names(scrn) != ""]
+  #scrn <- scrn[, !is.na(names(scrn)) & names(scrn) != ""]
   
   # Assign row_id
   scrn$row_id <- 1:nrow(scrn)
@@ -134,6 +134,51 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   #length(list.files("results/output_scrn/", pattern = "^scrn_tf111_100_50_80_20_15_100_0_\\d{1,3}\\.csv$"))
   
   
+#### --- Data Preparation and Recoding --- ###
+  # Screening group
+  scrn <- scrn %>%
+    mutate(
+      Stage.cat = case_when(
+        Stage == 1 ~ "IA",
+        Stage == 2 ~ "IB",
+        Stage == 3 ~ "II",
+        Stage == 4 ~ "IIIA",
+        Stage == 5 ~ "IIIB",
+        Stage == 6 ~ "IV",
+        TRUE ~ NA_character_
+      ),
+      Histology.cat = case_when(
+        Histology == 1 ~ "Small Cell",
+        Histology == 2 ~ "Adenocarcinoma",
+        Histology == 3 ~ "Squamous",
+        Histology == 4 ~ "Other",
+        TRUE ~ NA_character_
+      )
+    )
+  
+  # No-screening group
+  noscrn <- noscrn %>%
+    mutate(
+      Stage.cat = case_when(
+        Stage == 1 ~ "IA",
+        Stage == 2 ~ "IB",
+        Stage == 3 ~ "II",
+        Stage == 4 ~ "IIIA",
+        Stage == 5 ~ "IIIB",
+        Stage == 6 ~ "IV",
+        TRUE ~ NA_character_
+      ),
+      Histology.cat = case_when(
+        Histology == 1 ~ "Small Cell",
+        Histology == 2 ~ "Adenocarcinoma",
+        Histology == 3 ~ "Squamous",
+        Histology == 4 ~ "Other",
+        TRUE ~ NA_character_
+      )
+    )
+  
+  
+  
 
 #### --- Post-Simulation Analysis --- ###
 ## Table 1 #    
@@ -142,24 +187,36 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
 ## Table 2 # (Exclude Stage 0)
   table2_noscrn <- noscrn %>%
-    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat)) %>%
-    mutate(Stage = as.factor(Stage)) %>%
-    janitor::tabyl(Stage, comorb_cat) %>%
-    janitor::adorn_percentages("col") %>%
-    janitor::adorn_pct_formatting(digits = 1) %>%
-    janitor::adorn_ns() # No Screening
+    filter(Stage.cat != "0", !is.na(Stage.cat), !is.na(comorb_cat)) %>%
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # No Screening
 
   table2_scrn <- scrn %>%
-    filter(!is.na(Stage), Stage != 0, !is.na(comorb_cat), !(Overdiagnosis == 1 & Dectected == 0)) %>%
-    mutate(Stage = as.factor(Stage)) %>%
-    janitor::tabyl(Stage, comorb_cat) %>%
-    janitor::adorn_percentages("col") %>%
-    janitor::adorn_pct_formatting(digits = 1) %>%
-    janitor::adorn_ns() # Screening
+    filter(
+      Stage.cat != "0",
+      !(Overdiagnosis == 1 & Detected == 0),
+      !is.na(Stage.cat), !is.na(comorb_cat)
+    ) %>%
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening
   
   # Chi-square test
-  chisq2_noscrn <- chisq.test(table(noscrn$Stage[noscrn$Stage != 0], noscrn$comorb_cat[noscrn$Stage != 0]))
-  chisq2_scrn <- chisq.test(table(scrn$Stage[scrn$Stage != 0], scrn$comorb_cat[scrn$Stage != 0]))
+  chisq2_noscrn <- with(filter(noscrn, Stage.cat != "0"), chisq.test(table(Stage.cat, comorb_cat)))
+  chisq2_scrn <- with(filter(scrn, Stage.cat != "0" & !(Overdiagnosis == 1 & Detected == 0)), chisq.test(table(Stage.cat, comorb_cat)))
   
   # Output
   print(table2_noscrn)
@@ -178,32 +235,36 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
 ## Table 5 #  (Exclude Stage 0)
   table5_noscrn <- noscrn %>%
-    filter(!is.na(Histology), !is.na(comorb_cat)) %>%
-    count(Histology, comorb_cat) %>%
+    filter(Stage.cat != "0", !is.na(Histology.cat), !is.na(comorb_cat)) %>%
+    count(Histology.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
     mutate(
       pct = round(n / sum(n) * 100, 1),
       formatted = paste0(n, " (", pct, "%)")
     ) %>%
     ungroup() %>%
-    select(Histology, comorb_cat, formatted) %>%
+    select(Histology.cat, comorb_cat, formatted) %>%
     tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # No Screening
   
   table5_scrn <- scrn %>%
-    filter(!is.na(Histology), !is.na(comorb_cat)) %>%
-    count(Histology, comorb_cat) %>%
+    filter(
+      Stage.cat != "0",
+      !(Overdiagnosis == 1 & Detected == 0),
+      !is.na(Histology.cat), !is.na(comorb_cat)
+    ) %>%
+    count(Histology.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
     mutate(
       pct = round(n / sum(n) * 100, 1),
       formatted = paste0(n, " (", pct, "%)")
     ) %>%
     ungroup() %>%
-    select(Histology, comorb_cat, formatted) %>%
+    select(Histology.cat, comorb_cat, formatted) %>%
     tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening  
   
   # Chi-square test
-  chisq5_noscrn <- chisq.test(table(noscrn$Histology, noscrn$comorb_cat))
-  chisq5_scrn <- chisq.test(table(scrn$Histology, scrn$comorb_cat))
+  chisq5_noscrn <- with(filter(noscrn, Stage.cat != "0"), chisq.test(table(Histology.cat, comorb_cat)))
+  chisq5_scrn <- with(filter(scrn, Stage.cat != "0" & !(overdiagnosis == 1 & detected == 0)), chisq.test(table(Histology.cat, comorb_cat)))
   
   # Output
   print(table5_noscrn)
