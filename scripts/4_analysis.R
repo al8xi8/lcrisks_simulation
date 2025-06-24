@@ -115,13 +115,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
   scrn <- scrn %>%
     left_join(expanded_data %>% select(row_id, all_of(comorb_cols)), by = "row_id")
-  
-# --- Compute comorbidity count and category ---
-  scrn$comorb_count <- rowSums(scrn[, comorb_cols], na.rm = TRUE)
-  scrn$comorb_cat <- cut(scrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
-  
-  noscrn$comorb_count <- rowSums(noscrn[, comorb_cols], na.rm = TRUE)
-  noscrn$comorb_cat <- cut(noscrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
+
   
  # Check Missing 
   #noscrn_missing <- sapply(noscrn, function(x) sum(is.na(x)))
@@ -135,6 +129,13 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
   
 #### --- Data Preparation and Recoding --- ###
+  # Compute comorbidity count and category ---
+  scrn$comorb_count <- rowSums(scrn[, comorb_cols], na.rm = TRUE)
+  scrn$comorb_cat <- cut(scrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
+  
+  noscrn$comorb_count <- rowSums(noscrn[, comorb_cols], na.rm = TRUE)
+  noscrn$comorb_cat <- cut(noscrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
+  
   # Screening group
   scrn <- scrn %>%
     mutate(
@@ -187,7 +188,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
 ## Table 2 # (Exclude Stage 0)
   table2_noscrn <- noscrn %>%
-    filter(Stage.cat != "0", !is.na(Stage.cat), !is.na(comorb_cat)) %>%
+    filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
     count(Stage.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
     mutate(
@@ -200,9 +201,9 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
 
   table2_scrn <- scrn %>%
     filter(
-      Stage.cat != "0",
+      !is.na(Stage.cat),
       !(Overdiagnosis == 1 & Detected == 0),
-      !is.na(Stage.cat), !is.na(comorb_cat)
+      !is.na(comorb_cat)
     ) %>%
     count(Stage.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
@@ -215,8 +216,13 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
     tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening
   
   # Chi-square test
-  chisq2_noscrn <- with(filter(noscrn, Stage.cat != "0"), chisq.test(table(Stage.cat, comorb_cat)))
-  chisq2_scrn <- with(filter(scrn, Stage.cat != "0" & !(Overdiagnosis == 1 & Detected == 0)), chisq.test(table(Stage.cat, comorb_cat)))
+  chisq2_noscrn <- noscrn %>%
+    filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
+    {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+  
+  chisq2_scrn <- scrn %>%
+    filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
+    {chisq.test(table(.$Stage.cat, .$comorb_cat))}
   
   # Output
   print(table2_noscrn)
@@ -235,7 +241,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
 ## Table 5 #  (Exclude Stage 0)
   table5_noscrn <- noscrn %>%
-    filter(Stage.cat != "0", !is.na(Histology.cat), !is.na(comorb_cat)) %>%
+    filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>%
     count(Histology.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
     mutate(
@@ -248,9 +254,8 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
   
   table5_scrn <- scrn %>%
     filter(
-      Stage.cat != "0",
-      !(Overdiagnosis == 1 & Detected == 0),
-      !is.na(Histology.cat), !is.na(comorb_cat)
+      !is.na(Histology.cat), !is.na(comorb_cat),
+      !(Overdiagnosis == 1 & Detected == 0)
     ) %>%
     count(Histology.cat, comorb_cat) %>%
     group_by(comorb_cat) %>%
@@ -263,8 +268,16 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
     tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening  
   
   # Chi-square test
-  chisq5_noscrn <- with(filter(noscrn, Stage.cat != "0"), chisq.test(table(Histology.cat, comorb_cat)))
-  chisq5_scrn <- with(filter(scrn, Stage.cat != "0" & !(overdiagnosis == 1 & detected == 0)), chisq.test(table(Histology.cat, comorb_cat)))
+  chisq5_noscrn <- noscrn %>%
+    filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>%
+    {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+  
+  chisq5_scrn <- scrn %>%
+    filter(
+      !is.na(Histology.cat), !is.na(comorb_cat),
+      !(Overdiagnosis == 1 & Detected == 0)
+    ) %>%
+    {chisq.test(table(.$Histology.cat, .$comorb_cat))}
   
   # Output
   print(table5_noscrn)
