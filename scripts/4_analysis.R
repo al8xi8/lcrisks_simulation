@@ -179,8 +179,8 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
     )
   
   
-
-#### --- Post-Simulation Analysis (NHIS Mock Table) --- ###
+####### NHIS Mock Table #######
+#### --- "noscrn" (No Screening) v.s. "scrn" (Screening) --- ###
   
 ## Table 1 #    
   
