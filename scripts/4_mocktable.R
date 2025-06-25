@@ -182,13 +182,13 @@ noscrn <- noscrn %>%
 ####### NHIS Mock Table #######
 #### --- "noscrn" (No Screening) v.s. "scrn" (Screening) --- ###
 
-## Table 1 #    
+## Table 1 #  keep stage 0  
 
 
 --------------------------------------------------------------------------------  
   ## Table 2 # (Exclude Stage 0)
   table2_noscrn <- noscrn %>%
-  filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
+  filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>% # Stage == 0 is Stage.cat == NA
   count(Stage.cat, comorb_cat) %>%
   group_by(comorb_cat) %>%
   mutate(

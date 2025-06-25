@@ -12,9 +12,13 @@ od1_dec0 <- sum(scrn$Overdiagnosis == 1 & scrn$Detected == 0, na.rm = TRUE)
 
 # Output
 cat("OD = 1 (total overdiagnosed):", od1_total, "\n")
-cat("OD = 1 & Detected = 1 (screen-detected OD):", od1_dec1, "\n")
-cat("OD = 1 & Detected = 0 (non-screen-detected OD):", od1_dec0, "\n")
+  #OD = 1 (total overdiagnosed): 19633
 
+cat("OD = 1 & Detected = 1 (screen-detected OD):", od1_dec1, "\n")
+  #OD = 1 & Detected = 1 (screen-detected OD): 4790 
+
+cat("OD = 1 & Detected = 0 (non-screen-detected OD):", od1_dec0, "\n")
+  #OD = 1 & Detected = 0 (non-screen-detected OD): 14843
 
 
 #### --- Sensitivity Analysis for "scrn" (Screening) --- ###
