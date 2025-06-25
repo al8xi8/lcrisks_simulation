@@ -20,6 +20,20 @@ cat("OD = 1 & Detected = 1 (screen-detected OD):", od1_dec1, "\n")
 cat("OD = 1 & Detected = 0 (non-screen-detected OD):", od1_dec0, "\n")
   #OD = 1 & Detected = 0 (non-screen-detected OD): 14843
 
+# Count missing values
+missing_stage <- sum(is.na(scrn$Stage.cat))
+  #Missing Stage.cat: 1892114 
+
+missing_comorb <- sum(is.na(scrn$comorb_cat))
+  #Missing comorb_cat: 0 
+
+missing_both <- sum(is.na(scrn$Stage.cat) & is.na(scrn$comorb_cat))
+  #Missing both Stage.cat and comorb_cat: 0
+
+# Output
+cat("Missing Stage.cat:", missing_stage, "\n")
+cat("Missing comorb_cat:", missing_comorb, "\n")
+cat("Missing both Stage.cat and comorb_cat:", missing_both, "\n")
 
 #### --- Sensitivity Analysis for "scrn" (Screening) --- ###
 --## Table 1 #    
