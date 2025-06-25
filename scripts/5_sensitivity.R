@@ -1,5 +1,22 @@
 
 ####### NHIS Mock Table #######
+
+# Count of all overdiagnosed cases
+od1_total <- sum(scrn$Overdiagnosis == 1, na.rm = TRUE)
+
+# Count of screen-detected overdiagnosed cases (OD = 1 & Detected = 1)
+od1_dec1 <- sum(scrn$Overdiagnosis == 1 & scrn$Detected == 1, na.rm = TRUE)
+
+# Count of non-screen-detected overdiagnosed cases (OD = 1 & Detected = 0)
+od1_dec0 <- sum(scrn$Overdiagnosis == 1 & scrn$Detected == 0, na.rm = TRUE)
+
+# Output
+cat("OD = 1 (total overdiagnosed):", od1_total, "\n")
+cat("OD = 1 & Detected = 1 (screen-detected OD):", od1_dec1, "\n")
+cat("OD = 1 & Detected = 0 (non-screen-detected OD):", od1_dec0, "\n")
+
+
+
 #### --- Sensitivity Analysis for "scrn" (Screening) --- ###
 --## Table 1 #    
   
