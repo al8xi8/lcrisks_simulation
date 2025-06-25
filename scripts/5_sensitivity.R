@@ -7,7 +7,7 @@
 --------------------------------------------------------------------------------  
 ## Table 2 #
 
-  ### (Sensitivity) — Exclude OD=1 & Detected=1
+### (Sensitivity) — Exclude OD=1 & Detected=1
   table2_scrn_exOD <- scrn %>%
     filter(
       !is.na(Stage.cat),
@@ -35,9 +35,44 @@
   
   ### Output (Sensitivity)
   print(table2_scrn_exOD)
-  cat("Chi-square p-value (screening, exclude all OD):",
+  cat("Chi-square p-value (screening, exclude screen detected overdiagnosis):",
       format.pval(chisq2_scrn_exOD$p.value, digits = 3, eps = .Machine$double.eps), "\n")
   
+  
+### (TRUE Sensitivity) — Exclude ALL Overdiagnosed Cases (OD = 1)
+  table2_scrn_trueSens <- scrn %>%
+    filter(
+      !is.na(Stage.cat),
+      !is.na(comorb_cat),
+      Overdiagnosis != 1  # Exclude ALL overdiagnosed cases
+    ) %>%
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(
+      names_from = comorb_cat,
+      values_from = formatted,
+      values_fill = "0 (0%)"
+    )
+  
+  ### Chi-square test (TRUE Sensitivity)
+  chisq2_scrn_trueSens <- scrn %>%
+    filter(
+      !is.na(Stage.cat),
+      !is.na(comorb_cat),
+      Overdiagnosis != 1
+    ) %>%
+    {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+  
+  ### Output (TRUE Sensitivity)
+  print(table2_scrn_trueSens)
+  cat("Chi-square p-value (screening, exclude ALL overdiagnosed cases):",
+      format.pval(chisq2_scrn_trueSens$p.value, digits = 3, eps = .Machine$double.eps), "\n")
   
 --------------------------------------------------------------------------------  
 ## Table 3 # all cost mortality keep stage 0
@@ -50,7 +85,7 @@
 --------------------------------------------------------------------------------
 ## Table 5 #
     
-  ### Table 5 (Sensitivity) — Exclude OD=1 & Detected=1
+### Table 5 (Sensitivity) — Exclude OD=1 & Detected=1
   table5_scrn_exOD <- scrn %>%
     filter(
       !is.na(Histology.cat),
@@ -78,8 +113,44 @@
   
   ### Output (Sensitivity)
   print(table5_scrn_exOD)
-  cat("Chi-square p-value (screening, exOD):", 
+  cat("Chi-square p-value (screening, screen detected overdiagnosis):", 
       format.pval(chisq5_scrn_exOD$p.value, digits = 3, eps = .Machine$double.eps), "\n")
+
+
+### (TRUE Sensitivity) — Exclude ALL Overdiagnosed Cases (OD = 1)
+  table5_scrn_trueSens <- scrn %>%
+    filter(
+      !is.na(Histology.cat),
+      !is.na(comorb_cat),
+      Overdiagnosis != 1  # Exclude ALL overdiagnosed cases
+    ) %>%
+    count(Histology.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Histology.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(
+      names_from = comorb_cat,
+      values_from = formatted,
+      values_fill = "0 (0%)"
+    )
+  
+  ### Chi-square test (TRUE Sensitivity)
+  chisq5_scrn_trueSens <- scrn %>%
+    filter(
+      !is.na(Histology.cat),
+      !is.na(comorb_cat),
+      Overdiagnosis != 1
+    ) %>%
+    {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+  
+  ### Output (TRUE Sensitivity)
+  print(table5_scrn_trueSens)
+  cat("Chi-square p-value (screening, exclude ALL overdiagnosed cases):",
+      format.pval(chisq5_scrn_trueSens$p.value, digits = 3, eps = .Machine$double.eps), "\n")
   
   
 --------------------------------------------------------------------------------  
