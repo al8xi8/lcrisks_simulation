@@ -312,7 +312,6 @@ generate_table6_scrn <- function(data, comorb_label) {
     ) %>%
     ungroup()
   
-  
 # Chi-square test for "combined Table 6"
 chisq_result <- data %>%
     filter(comorb_cat == comorb_label) %>%
