@@ -186,7 +186,7 @@ noscrn <- noscrn %>%
 
 
 --------------------------------------------------------------------------------  
-  ## Table 2 # (Exclude Stage 0)
+  ## Table 2 # (Exclude Stage.cat == NA)   
   table2_noscrn <- noscrn %>%
   filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>% # Stage == 0 is Stage.cat == NA
   count(Stage.cat, comorb_cat) %>%
@@ -241,9 +241,9 @@ cat("Chi-square p-value (screening):",
   
   
 --------------------------------------------------------------------------------
-  ## Table 5 #  (Exclude Stage 0)
+  ## Table 5 # (Exclude Histology.cat == NA)   
 table5_noscrn <- noscrn %>%
-  filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>%
+  filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>% # Histology == 0 is Histology.cat == NA
   count(Histology.cat, comorb_cat) %>%
   group_by(comorb_cat) %>%
   mutate(
@@ -290,11 +290,11 @@ cat("Chi-square p-value (screening):",
     format.pval(chisq5_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
 
 --------------------------------------------------------------------------------  
-  ## Table 6 #    
+  ## Table 6 # (Exclude Stage.cat == NA & Histology.cat == NA)   
 table6_scrn_base <- scrn %>%
   filter(
-    !is.na(Stage.cat),
-    !is.na(Histology.cat),
+    !is.na(Stage.cat), # Stage == 0 is Stage.cat == NA
+    !is.na(Histology.cat), # Histology == 0 is Histology.cat == NA
     !(Overdiagnosis == 1 & Detected == 0),
     !is.na(comorb_cat)
   )
@@ -331,15 +331,14 @@ table6_scrn_2plus <- generate_table6_scrn(table6_scrn_base, "2+")
 # Output
 cat("\n=== Table 6 – Screening – N_cor = 0 ===\n")
   print(table6_scrn_0$table)
-
+cat("\nChi-square p-value (N_cor = 0):", format.pval(table6_scrn_0$chisq$p.value, digits = 3), "\n")
+  
 cat("\n=== Table 6 – Screening – N_cor = 1 ===\n")
   print(table6_scrn_1$table)
-
+cat("Chi-square p-value (N_cor = 1):", format.pval(table6_scrn_1$chisq$p.value, digits = 3), "\n")
+  
 cat("\n=== Table 6 – Screening – N_cor = 2+ ===\n")
   print(table6_scrn_2plus$table)
-  
-cat("\nChi-square p-value (N_cor = 0):", format.pval(table6_scrn_0$chisq$p.value, digits = 3), "\n")
-cat("Chi-square p-value (N_cor = 1):", format.pval(table6_scrn_1$chisq$p.value, digits = 3), "\n")
 cat("Chi-square p-value (N_cor = 2+):", format.pval(table6_scrn_2plus$chisq$p.value, digits = 3), "\n")
   
   
