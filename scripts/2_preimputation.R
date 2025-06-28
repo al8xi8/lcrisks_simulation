@@ -198,3 +198,6 @@ baseline_wide <- baseline_combined_long %>%
     names_glue = "{.value}_{Year}")
 
 View(baseline_wide)
+
+
+
