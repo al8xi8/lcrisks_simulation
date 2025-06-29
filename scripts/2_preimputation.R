@@ -136,7 +136,8 @@ summarize_baseline <- function(data, label) {
   }
   
   comorbidities <- bind_rows(
-    comorbidity_summary("copd", "COPD/chronic bronchitis/emphysema"),
+    comorbidity_summary("copd", "COPD/emphysema"),
+    comorbidity_summary("bron", "Chronic bronchitis"),
     comorbidity_summary("diab", "Diabetes"),
     comorbidity_summary("heartdisease", "Heart disease or myocardial infarction"),
     comorbidity_summary("stroke", "Stroke")

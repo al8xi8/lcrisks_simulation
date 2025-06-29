@@ -22,7 +22,7 @@ expanded_data <- read_csv("datasets/expanded_data.csv")
 expanded_data$row_id <- 1:nrow(expanded_data)
 
 # Define comorbidity columns
-comorb_cols <- c("prshist", "hypertension", "chd", "angina", "heartattack",
+comorb_cols <- c("copd", "prshist", "hypertension", "chd", "angina", "heartattack",
                  "heartdisease", "stroke", "diab", "bron", "kidney", "liver", "spaceq")
 
 
@@ -136,6 +136,9 @@ scrn$comorb_cat <- cut(scrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c(
 noscrn$comorb_count <- rowSums(noscrn[, comorb_cols], na.rm = TRUE)
 noscrn$comorb_cat <- cut(noscrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
 
+expanded_data$comorb_count <- rowSums(expanded_data[, comorb_cols], na.rm = TRUE)
+expanded_data$comorb_cat <- cut(expanded_data$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
+
 # Screening group
 scrn <- scrn %>%
   mutate(
@@ -179,11 +182,26 @@ noscrn <- noscrn %>%
   )
 
 
-####### NHIS Mock Table #######
+####### NHIS Mock Table : Part 1 #######
 #### --- "noscrn" (No Screening) v.s. "scrn" (Screening) --- ###
 
-## Table 1 #  keep stage 0  
+  ## Table 1 # (Keep Stage 0)  
+expanded_0 <- expanded_data %>% filter(comorb_cat == "0")
+expanded_1 <- expanded_data %>% filter(comorb_cat == "1")
+expanded_2p <- expanded_data %>% filter(comorb_cat == "2+")
 
+  # Refer to File "3_imputation.R" for Function "Baseline Summary for Post-Imputation Data".
+baseline_table1_expanded0 <- summarize_baseline_final(expanded_0)
+baseline_table1_expanded0$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 0)"
+View(baseline_table1_expanded0)
+
+baseline_table1_expanded1 <- summarize_baseline_final(expanded_1)
+baseline_table1_expanded1$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 1)"
+View(baseline_table1_expanded1)
+
+baseline_table1_expanded2p <- summarize_baseline_final(expanded_2p)
+baseline_table1_expanded2p$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 2p)"
+View(baseline_table1_expanded2p)
 
 --------------------------------------------------------------------------------  
   ## Table 2 # (Exclude Stage.cat == NA)   

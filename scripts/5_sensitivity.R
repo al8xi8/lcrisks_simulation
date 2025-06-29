@@ -1,5 +1,5 @@
 
-####### NHIS Mock Table #######
+####### NHIS Mock Table : Part 2#######
 
 # Count of all overdiagnosed cases
 od1_total <- sum(scrn$Overdiagnosis == 1, na.rm = TRUE)
@@ -35,11 +35,11 @@ cat("Missing Stage.cat:", missing_stage, "\n")
 cat("Missing comorb_cat:", missing_comorb, "\n")
 cat("Missing both Stage.cat and comorb_cat:", missing_both, "\n")
 
+
+--------------------------------------------------------------------------------
+  
 #### --- Sensitivity Analysis for "scrn" (Screening) --- ###
---## Table 1 #    
-  
-  
---------------------------------------------------------------------------------  
+ 
 ## Table 2 #
 
 ### (Sensitivity) — Exclude OD=1 & Detected=1
@@ -110,14 +110,7 @@ cat("Missing both Stage.cat and comorb_cat:", missing_both, "\n")
       format.pval(chisq2_scrn_trueSens$p.value, digits = 3, eps = .Machine$double.eps), "\n")
   
 --------------------------------------------------------------------------------  
-## Table 3 # all cost mortality keep stage 0
-    
-    
---------------------------------------------------------------------------------
-## Table 4 # lung cancer diagnosis keep stage 0
-    
-    
---------------------------------------------------------------------------------
+
 ## Table 5 #
     
 ### Table 5 (Sensitivity) — Exclude OD=1 & Detected=1
@@ -187,10 +180,4 @@ cat("Missing both Stage.cat and comorb_cat:", missing_both, "\n")
   cat("Chi-square p-value (screening, exclude ALL overdiagnosed cases):",
       format.pval(chisq5_scrn_trueSens$p.value, digits = 3, eps = .Machine$double.eps), "\n")
   
-  
---------------------------------------------------------------------------------  
-## Table 6 #    
-    
-    
-    
     

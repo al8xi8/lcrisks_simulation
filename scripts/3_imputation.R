@@ -228,7 +228,8 @@ write.csv(expanded_data, "expanded_data.csv", row.names = FALSE)
     }
     
     comorbidities <- bind_rows(
-      comorbidity_summary("copd", "COPD/chronic bronchitis/emphysema"),
+      comorbidity_summary("copd", "COPD/emphysema"),
+      comorbidity_summary("bron", "Chronic bronchitis"),
       comorbidity_summary("diab", "Diabetes"),
       comorbidity_summary("heartdisease", "Heart disease or myocardial infarction"),
       comorbidity_summary("stroke", "Stroke")
@@ -268,4 +269,6 @@ baseline_table1_plusperiod <- summarize_baseline_final(lcrisks_plusperiod)
 baseline_table1_plusperiod$Year <- "2016–2021 (PLuS Alignment)"
 View(baseline_table1_plusperiod)
 
-
+baseline_table1_expanded <- summarize_baseline_final(expanded_data)
+baseline_table1_expanded$Year <- "Expanded Post-Imputation (2010–2023)"
+View(baseline_table1_expanded)
