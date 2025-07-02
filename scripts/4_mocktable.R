@@ -14,6 +14,8 @@ library(tidyr)
 if (!require("janitor")) install.packages("janitor")
 library(janitor)
 library(readr)
+if (!require("Hmisc")) install.packages("Hmisc")
+library(Hmisc)
 
 # --- Load Post-Imputation + Weight-Expanded Dataset ---
 expanded_data <- read_csv("datasets/expanded_data.csv")
@@ -185,81 +187,201 @@ noscrn <- noscrn %>%
 ####### NHIS Mock Table : Part 1 #######
 #### --- "noscrn" (No Screening) v.s. "scrn" (Screening) --- ###
 
-  ## Table 1 # (Keep Stage 0)  
-expanded_0 <- expanded_data %>% filter(comorb_cat == "0")
-expanded_1 <- expanded_data %>% filter(comorb_cat == "1")
-expanded_2p <- expanded_data %>% filter(comorb_cat == "2+")
+## Table 1 # (Keep Stage 0)  
+  expanded_0 <- expanded_data %>% filter(comorb_cat == "0")
+  expanded_1 <- expanded_data %>% filter(comorb_cat == "1")
+  expanded_2p <- expanded_data %>% filter(comorb_cat == "2+")
+  
+    # Refer to File "3_imputation.R" for Function "Baseline Summary for Post-Imputation Data".
+    baseline_table1_expanded0 <- summarize_baseline_final(expanded_0)
+    baseline_table1_expanded0$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 0)"
+    View(baseline_table1_expanded0)
+    
+    baseline_table1_expanded1 <- summarize_baseline_final(expanded_1)
+    baseline_table1_expanded1$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 1)"
+    View(baseline_table1_expanded1)
+    
+    baseline_table1_expanded2p <- summarize_baseline_final(expanded_2p)
+    baseline_table1_expanded2p$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 2p)"
+    View(baseline_table1_expanded2p)
+  
 
-  # Refer to File "3_imputation.R" for Function "Baseline Summary for Post-Imputation Data".
-baseline_table1_expanded0 <- summarize_baseline_final(expanded_0)
-baseline_table1_expanded0$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 0)"
-View(baseline_table1_expanded0)
+    # --- Function to summarize continuous variables ---
+    summarize_continuous <- function(data, var) {
+      vec <- data[[var]]
+      vec <- vec[!is.na(vec)]
+      n <- length(vec)
+      m <- mean(vec)
+      ci <- t.test(vec)$conf.int
+      tibble(
+        Variable = var,
+        `Sample size` = n,
+        `Mean/Proportion` = round(m, 2),
+        `95% CI` = paste0("(", round(ci[1], 2), ", ", round(ci[2], 2), ")"),
+        `Minimum` = round(min(vec), 2),
+        `Maximum` = round(max(vec), 2),
+        `99 Percentile` = round(quantile(vec, 0.99), 2),
+        `Median` = round(median(vec), 2)
+      )
+    }
+    
+    
+    # --- Function to summarize binary/categorical variables ---
+    summarize_binary <- function(data, var, labels = NULL) {
+      tab <- table(data[[var]])
+      total <- sum(tab)
+      result <- tibble()
+      for (val in names(tab)) {
+        p <- prop.test(tab[[val]], total)$conf.int
+        label <- if (!is.null(labels) && val %in% names(labels)) labels[[val]] else paste(var, val)
+        result <- bind_rows(result, tibble(
+          Variable = label,
+          `Sample size` = total,
+          `Mean/Proportion` = round(100 * tab[[val]] / total, 1),
+          `95% CI` = paste0("(", round(100 * p[1], 1), ", ", round(100 * p[2], 1), ")"),
+          `Minimum` = NA, `Maximum` = NA, `99 Percentile` = NA, `Median` = NA
+        ))
+      }
+      result
+    }
+    
+    # --- Compute comorbidity count and category ---
+    expanded_data <- expanded_data %>%
+      mutate(
+        comorb_count = prshist + hypertension + chd + stroke + diab + bron +
+          copd + liver + heartattack + heartdisease + angina + kidney + spaceq,
+        comorb_cat = case_when(
+          comorb_count == 0 ~ "0",
+          comorb_count == 1 ~ "1",
+          comorb_count >= 2 ~ "2+"
+        )
+      )
+    
+    # --- Define labels for binary/categorical variables ---
+    continuous_vars <- c("age", "pky", "smkyears", "qtyears", "avecpd", "bmi")
+    
+    binary_vars <- list(
+      female = c("0" = "Male", "1" = "Female"),
+      race = c("0" = "Non-hispanic white", "1" = "Non-hispanic black", 
+               "2" = "Hispanic", "3" = "Other"),
+      lung_cancer = c("1" = "Had lung cancer during follow-up", "0" = "No lung cancer")
+    )
+    
+    comorb_labels <- c("0" = "0 comorbidities", "1" = "1 comorbidity", "2+" = "2+ comorbidities")
+    
+    # --- Generate summary table ---
+    summary_table <- bind_rows(
+      lapply(continuous_vars, function(v) summarize_continuous(expanded_data, v)),
+      bind_rows(lapply(names(binary_vars), function(v) summarize_binary(expanded_data, v, binary_vars[[v]]))),
+      summarize_binary(expanded_data, "comorb_cat", comorb_labels)
+    )
+    
+    summary_table0 <- bind_rows(
+      lapply(continuous_vars, function(v) summarize_continuous(expanded_0, v)),
+      bind_rows(lapply(names(binary_vars), function(v) summarize_binary(expanded_0, v, binary_vars[[v]]))),
+      summarize_binary(expanded_0, "comorb_cat", comorb_labels)
+    )
+    
+    summary_table1 <- bind_rows(
+      lapply(continuous_vars, function(v) summarize_continuous(expanded_1, v)),
+      bind_rows(lapply(names(binary_vars), function(v) summarize_binary(expanded_1, v, binary_vars[[v]]))),
+      summarize_binary(expanded_1, "comorb_cat", comorb_labels)
+    )
+    
+    summary_table2p <- bind_rows(
+      lapply(continuous_vars, function(v) summarize_continuous(expanded_2p, v)),
+      bind_rows(lapply(names(binary_vars), function(v) summarize_binary(expanded_2p, v, binary_vars[[v]]))),
+      summarize_binary(expanded_2p, "comorb_cat", comorb_labels)
+    )
 
-baseline_table1_expanded1 <- summarize_baseline_final(expanded_1)
-baseline_table1_expanded1$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 1)"
-View(baseline_table1_expanded1)
-
-baseline_table1_expanded2p <- summarize_baseline_final(expanded_2p)
-baseline_table1_expanded2p$Year <- "POST-IMPUTED NHIS EXPANDED* Full Year (N_cor = 2p)"
-View(baseline_table1_expanded2p)
-
+    # List of 13 comorbidity variables
+    comorb_vars <- c("prshist", "hypertension", "chd", "stroke", "diab",
+                     "bron", "copd", "liver", "heartattack", "heartdisease",
+                     "angina", "kidney", "spaceq")
+    
+    # Function to summarize binary comorbidity variables
+    summarize_comorb <- function(data, var) {
+      tab <- table(data[[var]])
+      total <- sum(tab)
+      pos <- ifelse("1" %in% names(tab), tab[["1"]], 0)
+      ci <- prop.test(pos, total)$conf.int
+      tibble(
+        Variable = var,
+        Count = pos,
+        `Total Sample` = total,
+        `Mean/Proportion (%)` = round(100 * pos / total, 1),
+        `95% CI` = paste0("(", round(100 * ci[1], 1), ", ", round(100 * ci[2], 1), ")")
+      )
+    }
+    
+    # Apply the summary function to all comorbidity variables
+    comorb_summary <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_data, v)))
+    #comorb_summary0 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_0, v)))
+    comorb_summary1 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_1, v)))
+    comorb_summary2p <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_2p, v)))
+    
+    
 --------------------------------------------------------------------------------  
-  ## Table 2 # (Exclude Stage.cat == NA)   
+
+## Table 2 # (Exclude Stage.cat == NA)   
   table2_noscrn <- noscrn %>%
-  filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>% # Stage == 0 is Stage.cat == NA
-  count(Stage.cat, comorb_cat) %>%
-  group_by(comorb_cat) %>%
-  mutate(
-    pct = round(n / sum(n) * 100, 1),
-    formatted = paste0(n, " (", pct, "%)")
-  ) %>%
-  ungroup() %>%
-  select(Stage.cat, comorb_cat, formatted) %>%
-  tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # No Screening
+    filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>% # Stage == 0 is Stage.cat == NA
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # No Screening
+  
+  table2_scrn <- scrn %>%
+    filter(
+      !is.na(Stage.cat),
+      !(Overdiagnosis == 1 & Detected == 0),
+      !is.na(comorb_cat)
+    ) %>%
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening
 
-table2_scrn <- scrn %>%
-  filter(
-    !is.na(Stage.cat),
-    !(Overdiagnosis == 1 & Detected == 0),
-    !is.na(comorb_cat)
-  ) %>%
-  count(Stage.cat, comorb_cat) %>%
-  group_by(comorb_cat) %>%
-  mutate(
-    pct = round(n / sum(n) * 100, 1),
-    formatted = paste0(n, " (", pct, "%)")
-  ) %>%
-  ungroup() %>%
-  select(Stage.cat, comorb_cat, formatted) %>%
-  tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening
-
-# Chi-square test
-chisq2_noscrn <- noscrn %>%
-  filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
-  {chisq.test(table(.$Stage.cat, .$comorb_cat))}
-
-chisq2_scrn <- scrn %>%
-  filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
-  {chisq.test(table(.$Stage.cat, .$comorb_cat))}
-
-# Output
-print(table2_noscrn)
-cat("Chi-square p-value (no-screening):", 
-    format.pval(chisq2_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")  
-print(table2_scrn)
-cat("Chi-square p-value (screening):", 
-    format.pval(chisq2_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
+    # Chi-square test
+    chisq2_noscrn <- noscrn %>%
+      filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
+      {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+    
+    chisq2_scrn <- scrn %>%
+      filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
+      {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+    
+    # Output
+    print(table2_noscrn)
+    cat("Chi-square p-value (no-screening):", 
+        format.pval(chisq2_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")  
+    print(table2_scrn)
+    cat("Chi-square p-value (screening):", 
+        format.pval(chisq2_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
 
 
 --------------------------------------------------------------------------------  
-  ## Table 3 # all cost mortality keep stage 0
+
+## Table 3 # all cost mortality keep stage 0
   
 --------------------------------------------------------------------------------
-  ## Table 4 # lung cancer diagnosis keep stage 0
+
+## Table 4 # lung cancer diagnosis keep stage 0
   
   
 --------------------------------------------------------------------------------
-  ## Table 5 # (Exclude Histology.cat == NA)   
+
+## Table 5 # (Exclude Histology.cat == NA)   
 table5_noscrn <- noscrn %>%
   filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>% # Histology == 0 is Histology.cat == NA
   count(Histology.cat, comorb_cat) %>%
@@ -287,75 +409,76 @@ table5_scrn <- scrn %>%
   select(Histology.cat, comorb_cat, formatted) %>%
   tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening  
 
-# Chi-square test
-chisq5_noscrn <- noscrn %>%
-  filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>%
-  {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+    # Chi-square test
+    chisq5_noscrn <- noscrn %>%
+      filter(!is.na(Histology.cat), !is.na(comorb_cat)) %>%
+      {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+    
+    chisq5_scrn <- scrn %>%
+      filter(
+        !is.na(Histology.cat), !is.na(comorb_cat),
+        !(Overdiagnosis == 1 & Detected == 0)
+      ) %>%
+      {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+    
+    # Output
+    print(table5_noscrn)
+    cat("Chi-square p-value (no-screening):", 
+        format.pval(chisq5_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
+    print(table5_scrn)
+    cat("Chi-square p-value (screening):", 
+        format.pval(chisq5_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
 
-chisq5_scrn <- scrn %>%
-  filter(
-    !is.na(Histology.cat), !is.na(comorb_cat),
-    !(Overdiagnosis == 1 & Detected == 0)
-  ) %>%
-  {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+--------------------------------------------------------------------------------
+      
+## Table 6 # (Exclude Stage.cat == NA & Histology.cat == NA)   
+  table6_scrn_base <- scrn %>%
+    filter(
+      !is.na(Stage.cat), # Stage == 0 is Stage.cat == NA
+      !is.na(Histology.cat), # Histology == 0 is Histology.cat == NA
+      !(Overdiagnosis == 1 & Detected == 0),
+      !is.na(comorb_cat)
+    )
+  
+  generate_table6_scrn <- function(data, comorb_label) {
+    tab <- data %>%
+      filter(comorb_cat == comorb_label) %>%
+      count(Stage.cat, Histology.cat) %>%
+      pivot_wider(names_from = Histology.cat, values_from = n, values_fill = 0) %>%
+      rowwise() %>%
+      mutate(
+        TOTAL = sum(c_across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other")), na.rm = TRUE),
+        across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other"), 
+               ~ paste0(.x, " (", round(.x / TOTAL * 100, 1), "%)"))
+      ) %>%
+      ungroup()
+  
+    # Chi-square test for "combined Table 6"
+    chisq_result <- data %>%
+        filter(comorb_cat == comorb_label) %>%
+        select(Stage.cat, Histology.cat) %>%
+        table() %>%
+        chisq.test()
+      
+      list(table = tab, chisq = chisq_result)
+    }
+      
+    # Stratify by comorbidity categories 
+    table6_scrn_0 <- generate_table6_scrn(table6_scrn_base, "0")
+    table6_scrn_1 <- generate_table6_scrn(table6_scrn_base, "1")
+    table6_scrn_2plus <- generate_table6_scrn(table6_scrn_base, "2+")
 
-# Output
-print(table5_noscrn)
-cat("Chi-square p-value (no-screening):", 
-    format.pval(chisq5_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
-print(table5_scrn)
-cat("Chi-square p-value (screening):", 
-    format.pval(chisq5_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
-
---------------------------------------------------------------------------------  
-  ## Table 6 # (Exclude Stage.cat == NA & Histology.cat == NA)   
-table6_scrn_base <- scrn %>%
-  filter(
-    !is.na(Stage.cat), # Stage == 0 is Stage.cat == NA
-    !is.na(Histology.cat), # Histology == 0 is Histology.cat == NA
-    !(Overdiagnosis == 1 & Detected == 0),
-    !is.na(comorb_cat)
-  )
-
-generate_table6_scrn <- function(data, comorb_label) {
-  tab <- data %>%
-    filter(comorb_cat == comorb_label) %>%
-    count(Stage.cat, Histology.cat) %>%
-    pivot_wider(names_from = Histology.cat, values_from = n, values_fill = 0) %>%
-    rowwise() %>%
-    mutate(
-      TOTAL = sum(c_across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other")), na.rm = TRUE),
-      across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other"), 
-             ~ paste0(.x, " (", round(.x / TOTAL * 100, 1), "%)"))
-    ) %>%
-    ungroup()
-  
-# Chi-square test for "combined Table 6"
-chisq_result <- data %>%
-    filter(comorb_cat == comorb_label) %>%
-    select(Stage.cat, Histology.cat) %>%
-    table() %>%
-    chisq.test()
-  
-  list(table = tab, chisq = chisq_result)
-}
-  
-# Stratify by comorbidity categories 
-table6_scrn_0 <- generate_table6_scrn(table6_scrn_base, "0")
-table6_scrn_1 <- generate_table6_scrn(table6_scrn_base, "1")
-table6_scrn_2plus <- generate_table6_scrn(table6_scrn_base, "2+")
-
-# Output
-cat("\n=== Table 6 – Screening – N_cor = 0 ===\n")
-  print(table6_scrn_0$table)
-cat("\nChi-square p-value (N_cor = 0):", format.pval(table6_scrn_0$chisq$p.value, digits = 3), "\n")
-  
-cat("\n=== Table 6 – Screening – N_cor = 1 ===\n")
-  print(table6_scrn_1$table)
-cat("Chi-square p-value (N_cor = 1):", format.pval(table6_scrn_1$chisq$p.value, digits = 3), "\n")
-  
-cat("\n=== Table 6 – Screening – N_cor = 2+ ===\n")
-  print(table6_scrn_2plus$table)
-cat("Chi-square p-value (N_cor = 2+):", format.pval(table6_scrn_2plus$chisq$p.value, digits = 3), "\n")
-  
-  
+    # Output
+    cat("\n=== Table 6 – Screening – N_cor = 0 ===\n")
+      print(table6_scrn_0$table)
+    cat("\nChi-square p-value (N_cor = 0):", format.pval(table6_scrn_0$chisq$p.value, digits = 3), "\n")
+      
+    cat("\n=== Table 6 – Screening – N_cor = 1 ===\n")
+      print(table6_scrn_1$table)
+    cat("Chi-square p-value (N_cor = 1):", format.pval(table6_scrn_1$chisq$p.value, digits = 3), "\n")
+      
+    cat("\n=== Table 6 – Screening – N_cor = 2+ ===\n")
+      print(table6_scrn_2plus$table)
+    cat("Chi-square p-value (N_cor = 2+):", format.pval(table6_scrn_2plus$chisq$p.value, digits = 3), "\n")
+      
+      
