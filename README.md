@@ -51,13 +51,17 @@ The core objective is to evaluate lung cancer incidence, detection, and mortalit
 
 ## 📁 Key Project Files
 
-- `nhis_lcrisks.csv`: Raw NHIS dataset after harmonization
-- `lcrisks_final.csv`: Final cleaned and recoded input dataset with 72 variables
-- `expanded_data.csv`: Weight-expanded version of `lcrisks_final.csv`
-- `split_nhis/nhis_000.csv` to `nhis_191.csv`: Subsets of the expanded dataset for simulation
-- `screening.R`, `lifetable_LCRAT.R`, `LCSpecMortality.R`, etc.: Simulation engine scripts
-- `output_noscrn/`: Simulation outputs for the no-screening arm
-- `output_scrn_lcriskocd/`: Outputs for the lifetime screening arm
+- `nhis_lcrisks.csv`: Raw NHIS dataset after harmonization.
+- `lcrisks_final.csv`: Final cleaned and recoded input dataset with 72 variables.
+- `expanded_data.csv`: Weight-expanded version of `lcrisks_final.csv`.
+- `split_nhis/nhis_000.csv` to `nhis_191.csv`: Subsets of the expanded dataset for batch simulation.
+- `screening.R`, `lifetable_LCRAT.R`, `LCSpecMortality.R`, etc.: Core scripts powering the LCrisks microsimulation model.
+- `output_noscrn/`: Simulation results for the **no-screening** scenario.
+- `output_scrn_lifetime/`: Outputs from **lifetime screening** simulation (continuous annual screening from eligibility onward).
+- `output_scrn_3scrns/`: Outputs from **3-round screening** simulation (screening occurs at fixed intervals, e.g., ages 55, 60, 65).
+
+These outputs will be compared across Table 2, Table 5, and Table 6 to assess differences in outcomes between lifetime and limited-round screening strategies.
+
 
 ---
 
