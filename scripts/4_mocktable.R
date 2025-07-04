@@ -16,6 +16,7 @@ library(janitor)
 library(readr)
 if (!require("Hmisc")) install.packages("Hmisc")
 library(Hmisc)
+library(tibble)
 
 # --- Load Post-Imputation + Weight-Expanded Dataset ---
 expanded_data <- read_csv("datasets/expanded_data.csv")
@@ -72,7 +73,7 @@ noscrn$row_id <- 1:nrow(noscrn)
 
 
 ### --- Load *Screening* Data --- ###
-scrn_path <- "results/output_scrn/"
+scrn_path <- "results/output_scrn_lifetime/"
 scrn_files <- list.files(
   path = scrn_path,
   pattern = "^scrn_tf111_100_50_80_20_15_100_0_\\d{1,3}\\.csv$",
@@ -317,11 +318,21 @@ noscrn <- noscrn %>%
     
     # Apply the summary function to all comorbidity variables
     comorb_summary <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_data, v)))
-    #comorb_summary0 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_0, v)))
+    #comorb_summary0 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_0, v))) #comorbidities should be 0
     comorb_summary1 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_1, v)))
     comorb_summary2p <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_2p, v)))
+  
+  # Had lung cancer during follow-up (<5 years)
+    scrn %>%
+      group_by(comorb_cat) %>%
+      summarise(
+        `Total N` = n(),
+        `LC cases (<5 years)` = sum(lc_5yr == 1, na.rm = TRUE),
+        `No LC cases` = sum(lc_5yr == 0, na.rm = TRUE),
+        `LC 5yr Proportion (%)` = round(100 * sum(lc_5yr == 1, na.rm = TRUE) / n(), 2)
+      )
     
-    
+  
 --------------------------------------------------------------------------------  
 
 ## Table 2 # (Exclude Stage.cat == NA)   
