@@ -131,6 +131,7 @@ scrn <- scrn %>%
 
 
 #### --- Data Preparation and Recoding --- ###
+
 # Compute comorbidity count and category ---
 scrn$comorb_count <- rowSums(scrn[, comorb_cols], na.rm = TRUE)
 scrn$comorb_cat <- cut(scrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
