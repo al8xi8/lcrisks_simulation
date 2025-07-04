@@ -16,7 +16,7 @@ The core objective is to evaluate lung cancer incidence, detection, and mortalit
   - Pack-years
   - Smoking duration
   - Eligibility flags
-  - Clean indicators for 12 comorbidities: `prshist`, `hypertension`, `chd`, `angina`, `heartattack`, `heartdisease`, `stroke`, `diab`, `bron`, `kidney`, `liver`, `spaceq`
+  - Clean indicators for 13 comorbidities: `prshist`, `hypertension`, `chd`, `angina`, `heartattack`, `heartdisease`, `stroke`, `diab`, `bron`, `copd`, `kidney`, `liver`, `spaceq`
 - Applied eligibility criteria: age 50–80, ≥20 pack-years, quit ≤15 years.
 - Generated the final cleaned dataset `lcrisks_final.csv` with 72 columns.
 - Performed weight expansion to create a synthetic U.S. population.
