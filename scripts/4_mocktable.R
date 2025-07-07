@@ -72,20 +72,37 @@ colnames(noscrn)[1:length(noscrn_colnames)] <- noscrn_colnames
 noscrn$row_id <- 1:nrow(noscrn)
 
 
-### --- Load *Screening* Data --- ###
+### --- Load *Screening* Data (lifetime + 3x) --- ###
 scrn_path <- "results/output_scrn_lifetime/"
+scrn3_path <- "results/output_scrn_3scrns/"  
+
 scrn_files <- list.files(
   path = scrn_path,
   pattern = "^scrn_tf111_100_50_80_20_15_100_0_\\d{1,3}\\.csv$",
   full.names = TRUE
 )
 
+scrn3_files <- list.files(
+  path = scrn3_path,
+  pattern = "^scrn_tf111_100_50_80_20_15_100_0_\\d{1,3}\\.csv$",
+  full.names = TRUE
+)
+
 # Sort numerically
 scrn_files <- scrn_files[order(as.numeric(gsub("[^0-9]", "", basename(scrn_files))))]
+scrn3_files <- scrn3_files[order(as.numeric(gsub("[^0-9]", "", basename(scrn3_files))))]
 
 # Read in and skip first row
 scrn <- bind_rows(
   lapply(scrn_files, function(file) {
+    df <- read_csv(file, col_names = FALSE, skip = 1)
+    df$file_id <- basename(file)
+    return(df)
+  })
+)
+
+scrn3 <- bind_rows(
+  lapply(scrn3_files, function(file) {
     df <- read_csv(file, col_names = FALSE, skip = 1)
     df$file_id <- basename(file)
     return(df)
@@ -103,12 +120,15 @@ scrn_colnames <- c(
 )
 
 colnames(scrn)[1:length(scrn_colnames)] <- scrn_colnames
+colnames(scrn3)[1:length(scrn_colnames)] <- scrn_colnames
+
 
 # Remove unnamed columns
 #scrn <- scrn[, !is.na(names(scrn)) & names(scrn) != ""]
 
 # Assign row_id
 scrn$row_id <- 1:nrow(scrn)
+scrn3$row_id <- 1:nrow(scrn3)
 
 
 
@@ -119,6 +139,8 @@ noscrn <- noscrn %>%
 scrn <- scrn %>%
   left_join(expanded_data %>% select(row_id, all_of(comorb_cols)), by = "row_id")
 
+scrn3 <- scrn3 %>%
+  left_join(expanded_data %>% select(row_id, all_of(comorb_cols)), by = "row_id")
 
 # Check Missing 
 #noscrn_missing <- sapply(noscrn, function(x) sum(is.na(x)))
@@ -133,9 +155,24 @@ scrn <- scrn %>%
 
 #### --- Data Preparation and Recoding --- ###
 
+    # Define smoking status columns
+    expanded_data <- expanded_data %>%
+      mutate(
+        smokestatus = case_when(
+          qtyears == 0 ~ "Current",
+          qtyears > 0 ~ "Former",
+          TRUE ~ NA_character_
+        )
+      )
+    expanded_data$smokestatus <- factor(expanded_data$smokestatus, levels = c("Current", "Former"))
+    
+
 # Compute comorbidity count and category ---
 scrn$comorb_count <- rowSums(scrn[, comorb_cols], na.rm = TRUE)
 scrn$comorb_cat <- cut(scrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
+
+scrn3$comorb_count <- rowSums(scrn3[, comorb_cols], na.rm = TRUE)
+scrn3$comorb_cat <- cut(scrn3$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
 
 noscrn$comorb_count <- rowSums(noscrn[, comorb_cols], na.rm = TRUE)
 noscrn$comorb_cat <- cut(noscrn$comorb_count, breaks = c(-1, 0, 1, Inf), labels = c("0", "1", "2+"))
@@ -145,6 +182,26 @@ expanded_data$comorb_cat <- cut(expanded_data$comorb_count, breaks = c(-1, 0, 1,
 
 # Screening group
 scrn <- scrn %>%
+  mutate(
+    Stage.cat = case_when(
+      Stage == 1 ~ "IA",
+      Stage == 2 ~ "IB",
+      Stage == 3 ~ "II",
+      Stage == 4 ~ "IIIA",
+      Stage == 5 ~ "IIIB",
+      Stage == 6 ~ "IV",
+      TRUE ~ NA_character_
+    ),
+    Histology.cat = case_when(
+      Histology == 1 ~ "Small Cell",
+      Histology == 2 ~ "Adenocarcinoma",
+      Histology == 3 ~ "Squamous",
+      Histology == 4 ~ "Other",
+      TRUE ~ NA_character_
+    )
+  )
+
+scrn3 <- scrn3 %>%
   mutate(
     Stage.cat = case_when(
       Stage == 1 ~ "IA",
@@ -185,7 +242,8 @@ noscrn <- noscrn %>%
     )
   )
 
-
+--------------------------------------------------------------------------------
+  
 ####### NHIS Mock Table : Part 1 #######
 #### --- "noscrn" (No Screening) v.s. "scrn" (Screening) --- ###
 
@@ -323,6 +381,16 @@ noscrn <- noscrn %>%
     comorb_summary2p <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_2p, v)))
   
   # Had lung cancer during follow-up (<5 years)
+    scrn <- scrn %>%
+      mutate(
+        lc_5yr = ifelse(!is.na(`Lung Cancer Age`) & (`Lung Cancer Age` - `Entry Age`) <= 5, 1, 0)
+      )
+    
+    scrn3 <- scrn3 %>%
+      mutate(
+        lc_5yr = ifelse(!is.na(`Lung Cancer Age`) & (`Lung Cancer Age` - `Entry Age`) <= 5, 1, 0)
+      )
+    
     scrn %>%
       group_by(comorb_cat) %>%
       summarise(
@@ -332,7 +400,76 @@ noscrn <- noscrn %>%
         `LC 5yr Proportion (%)` = round(100 * sum(lc_5yr == 1, na.rm = TRUE) / n(), 2)
       )
     
+    scrn3 %>%
+      group_by(comorb_cat) %>%
+      summarise(
+        `Total N` = n(),
+        `LC cases (<5 years)` = sum(lc_5yr == 1, na.rm = TRUE),
+        `No LC cases` = sum(lc_5yr == 0, na.rm = TRUE),
+        `LC 5yr Proportion (%)` = round(100 * sum(lc_5yr == 1, na.rm = TRUE) / n(), 2)
+      )
   
+    # ---- P-values ----
+    
+    # Function to run ANOVA for continuous variables
+    run_anova <- function(var) {
+      tryCatch({
+        model <- aov(reformulate("comorb_cat", response = var), data = expanded_data)
+        summary(model)[[1]]$`Pr(>F)`[1]
+      }, error = function(e) NA)
+    }
+    
+    # Function to run Chi-square test for categorical variables
+    run_chi_test <- function(var) {
+      tryCatch({
+        tbl <- table(expanded_data[[var]], expanded_data$comorb_cat, useNA = "ifany")
+        chisq.test(tbl)$p.value
+      }, error = function(e) NA)
+    }
+    
+    # Function to run Chi-square test from a different dataset
+    run_chi_test_external <- function(data, var) {
+      tryCatch({
+        tbl <- table(data[[var]], data$comorb_cat, useNA = "ifany")
+        chisq.test(tbl)$p.value
+      }, error = function(e) NA)
+    }
+    
+    # Variables
+    anova_vars <- c("age", "smkyears", "qtyears", "avecpd", "bmi")
+    chi_vars <- c("female", "race", "copd", "prshist", "hypertension", 
+                  "chd", "angina", "heartattack", "heartdisease", "stroke", 
+                  "diab", "bron", "kidney", "spaceq", "liver", "smokestatus")
+    
+    # Run tests
+    anova_p <- sapply(anova_vars, run_anova)
+    chi_p <- sapply(chi_vars, run_chi_test)
+    p_lc_scrn <- run_chi_test_external(scrn, "lc_5yr")
+    p_lc_scrn3 <- run_chi_test_external(scrn3, "lc_5yr")
+    
+    # Combine
+    p_values_table <- data.frame(
+      Variable = c("Age", "Smoking years", "Years quit", "CPD", "BMI",
+                   "Sex", "Race", "COPD", "Prior Cancer", "Hypertension",
+                   "CHD", "Angina", "Heart Attack", "Other Heart Disease", "Stroke",
+                   "Diabetes", "Chronic Bronchitis", "Kidney", "Functional Aid", 
+                   "Liver", "Smoking Status",
+                   "Lung cancer (5y) – scrn", "Lung cancer (5y) – scrn3"),
+      Test = c(rep("ANOVA", 5), rep("Chi-square", 16), rep("Chi-square", 2)),
+      P_value = c(anova_p, chi_p, p_lc_scrn, p_lc_scrn3)
+    )
+    
+    # Format for display
+    p_values_table$Formatted_P <- ifelse(
+      is.na(p_values_table$P_value), NA,
+      ifelse(p_values_table$P_value < 0.001, "<0.001", round(p_values_table$P_value, 3))
+    )
+    
+    # Display
+    print(p_values_table)
+    
+    
+    
 --------------------------------------------------------------------------------  
 
 ## Table 2 # (Exclude Stage.cat == NA)   
@@ -362,25 +499,47 @@ noscrn <- noscrn %>%
     ) %>%
     ungroup() %>%
     select(Stage.cat, comorb_cat, formatted) %>%
-    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening (lifetime)
 
-    # Chi-square test
-    chisq2_noscrn <- noscrn %>%
-      filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
-      {chisq.test(table(.$Stage.cat, .$comorb_cat))}
-    
-    chisq2_scrn <- scrn %>%
-      filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
-      {chisq.test(table(.$Stage.cat, .$comorb_cat))}
-    
-    # Output
-    print(table2_noscrn)
-    cat("Chi-square p-value (no-screening):", 
-        format.pval(chisq2_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")  
-    print(table2_scrn)
-    cat("Chi-square p-value (screening):", 
-        format.pval(chisq2_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
-
+  table2_scrn3 <- scrn3 %>%
+    filter(
+      !is.na(Stage.cat),
+      !(Overdiagnosis == 1 & Detected == 0),
+      !is.na(comorb_cat)
+    ) %>%
+    count(Stage.cat, comorb_cat) %>%
+    group_by(comorb_cat) %>%
+    mutate(
+      pct = round(n / sum(n) * 100, 1),
+      formatted = paste0(n, " (", pct, "%)")
+    ) %>%
+    ungroup() %>%
+    select(Stage.cat, comorb_cat, formatted) %>%
+    tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening (3x)
+  
+      # Chi-square test
+      chisq2_noscrn <- noscrn %>%
+        filter(!is.na(Stage.cat), !is.na(comorb_cat)) %>%
+        {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+      
+      chisq2_scrn <- scrn %>%
+        filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
+        {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+      
+      chisq2_scrn3 <- scrn3 %>%
+        filter(!is.na(Stage.cat), !is.na(comorb_cat), !(Overdiagnosis == 1 & Detected == 0)) %>%
+        {chisq.test(table(.$Stage.cat, .$comorb_cat))}
+      
+      # Output
+      print(table2_noscrn)
+      cat("Chi-square p-value (no-screening):", 
+          format.pval(chisq2_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")  
+      print(table2_scrn)
+      cat("Chi-square p-value (screening):", 
+          format.pval(chisq2_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
+      print(table2_scrn3)
+      cat("Chi-square p-value (screening):", 
+          format.pval(chisq2_scrn3$p.value, digits = 3, eps = .Machine$double.eps), "\n")
 
 --------------------------------------------------------------------------------  
 
@@ -419,7 +578,22 @@ table5_scrn <- scrn %>%
   ) %>%
   ungroup() %>%
   select(Histology.cat, comorb_cat, formatted) %>%
-  tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening  
+  tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening (lifetime)  
+
+table5_scrn3 <- scrn3 %>%
+  filter(
+    !is.na(Histology.cat), !is.na(comorb_cat),
+    !(Overdiagnosis == 1 & Detected == 0)
+  ) %>%
+  count(Histology.cat, comorb_cat) %>%
+  group_by(comorb_cat) %>%
+  mutate(
+    pct = round(n / sum(n) * 100, 1),
+    formatted = paste0(n, " (", pct, "%)")
+  ) %>%
+  ungroup() %>%
+  select(Histology.cat, comorb_cat, formatted) %>%
+  tidyr::pivot_wider(names_from = comorb_cat, values_from = formatted, values_fill = "0 (0%)") # Screening (3x)
 
     # Chi-square test
     chisq5_noscrn <- noscrn %>%
@@ -433,18 +607,31 @@ table5_scrn <- scrn %>%
       ) %>%
       {chisq.test(table(.$Histology.cat, .$comorb_cat))}
     
+    chisq5_scrn3 <- scrn3 %>%
+      filter(
+        !is.na(Histology.cat), !is.na(comorb_cat),
+        !(Overdiagnosis == 1 & Detected == 0)
+      ) %>%
+      {chisq.test(table(.$Histology.cat, .$comorb_cat))}
+    
     # Output
     print(table5_noscrn)
     cat("Chi-square p-value (no-screening):", 
         format.pval(chisq5_noscrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
     print(table5_scrn)
     cat("Chi-square p-value (screening):", 
-        format.pval(chisq5_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
+        format.pval(chisq5_scrn$p.value, digits = 3, eps = .Machine$double.eps), "\n")
+    print(table5_scrn3)
+    cat("Chi-square p-value (screening):", 
+        format.pval(chisq5_scrn3$p.value, digits = 3, eps = .Machine$double.eps), "\n") 
+    
 
 --------------------------------------------------------------------------------
       
 ## Table 6 # (Exclude Stage.cat == NA & Histology.cat == NA)   
-  table6_scrn_base <- scrn %>%
+  
+  # Lifetime Screening
+      table6_scrn_base <- scrn %>%
     filter(
       !is.na(Stage.cat), # Stage == 0 is Stage.cat == NA
       !is.na(Histology.cat), # Histology == 0 is Histology.cat == NA
@@ -492,5 +679,54 @@ table5_scrn <- scrn %>%
     cat("\n=== Table 6 – Screening – N_cor = 2+ ===\n")
       print(table6_scrn_2plus$table)
     cat("Chi-square p-value (N_cor = 2+):", format.pval(table6_scrn_2plus$chisq$p.value, digits = 3), "\n")
+
+  # 3x Screening
+    table6_scrn3_base <- scrn3 %>%
+      filter(
+        !is.na(Stage.cat),  # Stage == 0 is Stage.cat == NA
+        !is.na(Histology.cat),  # Histology == 0 is Histology.cat == NA
+        !(Overdiagnosis == 1 & Detected == 0),
+        !is.na(comorb_cat)
+      )
+    
+    generate_table6_scrn3 <- function(data, comorb_label) {
+      tab <- data %>%
+        filter(comorb_cat == comorb_label) %>%
+        count(Stage.cat, Histology.cat) %>%
+        pivot_wider(names_from = Histology.cat, values_from = n, values_fill = 0) %>%
+        rowwise() %>%
+        mutate(
+          TOTAL = sum(c_across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other")), na.rm = TRUE),
+          across(c("Small Cell", "Adenocarcinoma", "Squamous", "Other"), 
+                 ~ paste0(.x, " (", round(.x / TOTAL * 100, 1), "%)"))
+        ) %>%
+        ungroup()
       
+      chisq_result <- data %>%
+        filter(comorb_cat == comorb_label) %>%
+        select(Stage.cat, Histology.cat) %>%
+        table() %>%
+        chisq.test()
+      
+      list(table = tab, chisq = chisq_result)
+    }
+    
+    table6_scrn3_0 <- generate_table6_scrn3(table6_scrn3_base, "0")
+    table6_scrn3_1 <- generate_table6_scrn3(table6_scrn3_base, "1")
+    table6_scrn3_2plus <- generate_table6_scrn3(table6_scrn3_base, "2+")
+    
+    # Output
+    cat("\n=== Table 6 – Screening (3x) – N_cor = 0 ===\n")
+    print(table6_scrn3_0$table)
+    cat("Chi-square p-value (N_cor = 0):", format.pval(table6_scrn3_0$chisq$p.value, digits = 3), "\n")
+    
+    cat("\n=== Table 6 – Screening (3x) – N_cor = 1 ===\n")
+    print(table6_scrn3_1$table)
+    cat("Chi-square p-value (N_cor = 1):", format.pval(table6_scrn3_1$chisq$p.value, digits = 3), "\n")
+    
+    cat("\n=== Table 6 – Screening (3x) – N_cor = 2+ ===\n")
+    print(table6_scrn3_2plus$table)
+    cat("Chi-square p-value (N_cor = 2+):", format.pval(table6_scrn3_2plus$chisq$p.value, digits = 3), "\n")
+    
+
       
