@@ -17,6 +17,11 @@ library(readr)
 if (!require("Hmisc")) install.packages("Hmisc")
 library(Hmisc)
 library(tibble)
+library(survival)
+library(broom)
+install.packages("survminer")
+library(survminer)
+if (!require("cmprsk")) install.packages("cmprsk")
 
 # --- Load Post-Imputation + Weight-Expanded Dataset ---
 expanded_data <- read_csv("datasets/expanded_data.csv")
@@ -543,12 +548,132 @@ noscrn <- noscrn %>%
 
 --------------------------------------------------------------------------------  
 
-## Table 3 # all cost mortality keep stage 0
+## Table 3 # All-Cause Mortality
   
+ # Table 3A: Entire Population
+      # Step 1: Define survival time and death status
+      scrn$survtime <- scrn$`Survival Time`
+      scrn$alldth <- ifelse(!is.na(scrn$`Overall Death Age`), 1, 0)
+      
+      # Step 2: Merge survival info into expanded_data
+      expanded_data <- merge(
+        expanded_data,
+        scrn[, c("row_id", "survtime", "alldth")],
+        by = "row_id",
+        all.x = TRUE
+      )
+      
+      # Step 3: Define 5-year time and death indicator
+      expanded_data$time_5yr <- pmin(expanded_data$survtime, 5)
+      expanded_data$death_5yr <- ifelse(expanded_data$survtime <= 5 & expanded_data$alldth == 1, 1, 0)
+      
+      # Step 4: Relevel comorbidity group
+      expanded_data$comorb_cat <- relevel(factor(expanded_data$comorb_cat), ref = "0")
+      
+      # Step 5: Run Cox proportional hazards model
+      cox_3a <- coxph(Surv(time_5yr, death_5yr) ~ 
+                        factor(comorb_cat) + 
+                        age + 
+                        factor(female) + 
+                        factor(race) + 
+                        factor(smokestatus),
+                      data = expanded_data)
+      
+      # Step 6: Extract tidy results with HR and 95% CI
+      results_3a <- broom::tidy(cox_3a, conf.int = TRUE, exponentiate = TRUE)
+      print(results_3a)
+      
+      
+ # Table 3B: Lung Cancer Patients Only
+      # Step 1: Filter to lung cancer patients (exclude missing stage/histology)
+      scrn_lung <- scrn[!is.na(scrn$Stage.cat) & !is.na(scrn$Histology.cat), ]
+      
+      # Step 2: Keep only necessary survival variables, and rename
+      scrn_lung <- scrn_lung %>%
+        dplyr::select(row_id, `Survival Time`, `Overall Death Age`, Stage.cat, Histology.cat) %>%
+        dplyr::rename(
+          survtime = `Survival Time`,
+          death_age = `Overall Death Age`
+        ) %>%
+        dplyr::mutate(
+          alldth = ifelse(!is.na(death_age), 1, 0),
+          time_5yr = pmin(survtime, 5),
+          death_5yr = ifelse(survtime <= 5 & alldth == 1, 1, 0)
+        )
+      
+      # Step 3: Merge in covariates from expanded_data
+      scrn_lung <- merge(
+        scrn_lung,
+        expanded_data[, c("row_id", "comorb_cat", "age", "female", "race", "smokestatus")],
+        by = "row_id",
+        all.x = TRUE
+      )
+      
+      # Step 4: Drop any remaining NAs in key covariates
+      scrn_lung <- scrn_lung %>%
+        dplyr::filter(!is.na(comorb_cat) & !is.na(age) & !is.na(female) &
+                        !is.na(race) & !is.na(smokestatus))
+      
+      # Step 5: Relevel comorbidity group
+      scrn_lung$comorb_cat <- factor(scrn_lung$comorb_cat)
+      if ("0" %in% levels(scrn_lung$comorb_cat)) {
+        scrn_lung$comorb_cat <- relevel(scrn_lung$comorb_cat, ref = "0")
+      } else {
+        stop("Reference level '0' not found in comorb_cat")
+      }
+      
+      # Step 6: Run Cox model with additional adjustments
+      cox_3b <- coxph(Surv(time_5yr, death_5yr) ~ 
+                        factor(comorb_cat) + 
+                        age + 
+                        factor(female) + 
+                        factor(race) + 
+                        factor(smokestatus) +
+                        factor(Stage.cat) + 
+                        factor(Histology.cat),
+                      data = scrn_lung)
+      results_3b <- broom::tidy(cox_3b, conf.int = TRUE, exponentiate = TRUE)
+      print(results_3b)
+      
 --------------------------------------------------------------------------------
 
-## Table 4 # lung cancer diagnosis keep stage 0
-  
+## Table 4 # Fine and Gray Model (Keep Stage ==  0)
+      # Step 1: Merge lung cancer age from scrn
+        expanded_data <- merge(expanded_data, 
+                               scrn[, c("row_id", "Lung Cancer Age")], 
+                               by = "row_id", all.x = TRUE)
+      
+      # Step 2: Define time to diagnosis or censoring (in years)
+      expanded_data$lungtime <- with(expanded_data,
+                                     ifelse(!is.na(`Lung Cancer Age`), `Lung Cancer Age` - age,
+                                            ifelse(!is.na(survtime), survtime, NA)))
+      
+      # Step 3: Define competing risk status
+      # 1 = lung cancer diagnosis
+      # 2 = died before dx
+      # 0 = censored and no dx
+      expanded_data$lungstatus <- with(expanded_data,
+                                       ifelse(!is.na(`Lung Cancer Age`), 1,
+                                              ifelse(alldth == 1, 2, 0)))
+      # Step 4: Ensure reference level for comorbidity is "0"
+      expanded_data$comorb_cat <- factor(expanded_data$comorb_cat)
+      expanded_data$comorb_cat <- relevel(expanded_data$comorb_cat, ref = "0")
+      
+      # Step 5: Create design matrix (drop intercept)
+      covariates_4a <- model.matrix(~ comorb_cat + age + factor(female) + 
+                                      factor(race) + factor(smokestatus),
+                                    data = expanded_data)[, -1]
+      
+      # Step 6: Run Fine and Gray model with additional adjustments
+      fg_model_4a <- crr(ftime = expanded_data$lungtime,
+                         fstatus = expanded_data$lungstatus,
+                         cov1 = covariates_4a,
+                         failcode = 1,  # Lung cancer
+                         cencode = 0)   # Censored
+      summary_4a <- summary(fg_model_4a)
+      print(summary_4a)
+      
+      
   
 --------------------------------------------------------------------------------
 
