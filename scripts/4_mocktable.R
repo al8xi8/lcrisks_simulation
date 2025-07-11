@@ -22,6 +22,7 @@ library(broom)
 install.packages("survminer")
 library(survminer)
 if (!require("cmprsk")) install.packages("cmprsk")
+library(cmprsk)
 
 # --- Load Post-Imputation + Weight-Expanded Dataset ---
 expanded_data <- read_csv("datasets/expanded_data.csv")
@@ -385,7 +386,7 @@ noscrn <- noscrn %>%
     comorb_summary1 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_1, v)))
     comorb_summary2p <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_2p, v)))
   
-  # Had lung cancer during follow-up (<5 years)
+  # Had lung cancer during follow-up (<5 years) !!!!!!
     scrn <- scrn %>%
       mutate(
         lc_5yr = ifelse(!is.na(`Lung Cancer Age`) & (`Lung Cancer Age` - `Entry Age`) <= 5, 1, 0)
@@ -548,54 +549,86 @@ noscrn <- noscrn %>%
 
 --------------------------------------------------------------------------------  
 
-## Table 3 # All-Cause Mortality
+## Table 3 # All-Cause Mortality (lifetime vs 5 yr followup)
   
- # Table 3A: Entire Population
-      # Step 1: Define survival time and death status
-      scrn$survtime <- scrn$`Survival Time`
-      scrn$alldth <- ifelse(!is.na(scrn$`Overall Death Age`), 1, 0)
+# --------------------------------------
+# Table 3A: Entire Population
+# --------------------------------------        
+      # Step 0: Exclude overdiagnosed but undetected cases
+      scrn$exclude_flag <- ifelse(scrn$Overdiagnosis == 1 & scrn$Detected == 0, 1, 0)
       
-      # Step 2: Merge survival info into expanded_data
-      expanded_data <- merge(
-        expanded_data,
-        scrn[, c("row_id", "survtime", "alldth")],
-        by = "row_id",
-        all.x = TRUE
-      )
+      # Step 1: Merge exclusion flag + survival variables into expanded_data
+      surv_info <- scrn[, c("row_id", "Overall Death Age", "Entry Age", "exclude_flag")]
+      expanded_data <- merge(expanded_data, surv_info, by = "row_id", all.x = TRUE)
       
-      # Step 3: Define 5-year time and death indicator
-      expanded_data$time_5yr <- pmin(expanded_data$survtime, 5)
-      expanded_data$death_5yr <- ifelse(expanded_data$survtime <= 5 & expanded_data$alldth == 1, 1, 0)
+      # Step 2: Filter out excluded cases
+      expanded_data <- expanded_data[is.na(expanded_data$exclude_flag) | expanded_data$exclude_flag == 0, ]
       
-      # Step 4: Relevel comorbidity group
+      # Step 3: Calculate survival time and death status
+      expanded_data$survtime_all <- expanded_data$`Overall Death Age` - expanded_data$`Entry Age`
+      expanded_data$alldth_all <- ifelse(!is.na(expanded_data$`Overall Death Age`), 1, 0)
+      
+      # Step 4: Create 5-year follow-up variables
+      expanded_data$time_5yr_all <- pmin(expanded_data$survtime_all, 5)
+      expanded_data$death_5yr_all <- ifelse(expanded_data$survtime_all <= 5 & expanded_data$alldth_all == 1, 1, 0)
+      
+      # Step 5: Relevel comorbidity group
       expanded_data$comorb_cat <- relevel(factor(expanded_data$comorb_cat), ref = "0")
       
-      # Step 5: Run Cox proportional hazards model
-      cox_3a <- coxph(Surv(time_5yr, death_5yr) ~ 
-                        factor(comorb_cat) + 
-                        age + 
-                        factor(female) + 
-                        factor(race) + 
-                        factor(smokestatus),
-                      data = expanded_data)
+      # Step 6: Run Cox models
+      ## Table 3A I: Lifetime follow-up
+      cox_3a_lifetime <- coxph(Surv(survtime_all, alldth_all) ~ 
+                                 factor(comorb_cat) + 
+                                 age + 
+                                 factor(female) + 
+                                 factor(race) + 
+                                 factor(smokestatus),
+                               data = expanded_data)
       
-      # Step 6: Extract tidy results with HR and 95% CI
-      results_3a <- broom::tidy(cox_3a, conf.int = TRUE, exponentiate = TRUE)
-      print(results_3a)
+      ## Table 3A II: 5-year follow-up
+      cox_3a_5yr <- coxph(Surv(time_5yr_all, death_5yr_all) ~ 
+                            factor(comorb_cat) + 
+                            age + 
+                            factor(female) + 
+                            factor(race) + 
+                            factor(smokestatus),
+                          data = expanded_data)
       
+      results_3a_lifetime <- tidy(cox_3a_lifetime, conf.int = TRUE, exponentiate = TRUE)
+      results_3a_5yr <- tidy(cox_3a_5yr, conf.int = TRUE, exponentiate = TRUE)
+      print(results_3a_lifetime)
+      print(results_3a_5yr)
       
- # Table 3B: Lung Cancer Patients Only
-      # Step 1: Filter to lung cancer patients (exclude missing stage/histology)
+      #expanded_data$time_10yr_all <- pmin(expanded_data$survtime_all, 10)
+      #expanded_data$death_10yr_all <- ifelse(expanded_data$survtime_all <= 10 & expanded_data$alldth_all == 1, 1, 0)
+      #table(expanded_data$death_10yr_all)
+      #cox_3a_10yr <- coxph(Surv(time_10yr_all, death_10yr_all) ~ 
+      factor(comorb_cat) + 
+        age + 
+        factor(female) + 
+        factor(race) + 
+        factor(smokestatus),
+      data = expanded_data)
+
+      #results_3a_10yr <- tidy(cox_3a_10yr, conf.int = TRUE, exponentiate = TRUE)
+      #print(results_3a_10yr)
+      
+# --------------------------------------
+# Table 3B: Lung Cancer Patients Only
+# --------------------------------------
+      # Step 0: Exclude overdiagnosed but not detected cases
+      scrn$exclude_flag <- ifelse(scrn$Overdiagnosis == 1 & scrn$Detected == 0, 1, 0)
+      scrn <- scrn[scrn$exclude_flag == 0, ]
+      
+      # Step 1: Filter lung cancer patients with valid stage & histology
       scrn_lung <- scrn[!is.na(scrn$Stage.cat) & !is.na(scrn$Histology.cat), ]
       
-      # Step 2: Keep only necessary survival variables, and rename
+      # Step 2: Keep only necessary variables and calculate survival time correctly
       scrn_lung <- scrn_lung %>%
-        dplyr::select(row_id, `Survival Time`, `Overall Death Age`, Stage.cat, Histology.cat) %>%
-        dplyr::rename(
-          survtime = `Survival Time`,
-          death_age = `Overall Death Age`
-        ) %>%
+        dplyr::select(row_id, `Lung Cancer Age`, `Overall Death Age`, Stage.cat, Histology.cat) %>%
+        dplyr::rename(dx_age = `Lung Cancer Age`, death_age = `Overall Death Age`) %>%
         dplyr::mutate(
+          survtime = death_age - dx_age,
           alldth = ifelse(!is.na(death_age), 1, 0),
           time_5yr = pmin(survtime, 5),
           death_5yr = ifelse(survtime <= 5 & alldth == 1, 1, 0)
@@ -622,56 +655,76 @@ noscrn <- noscrn %>%
         stop("Reference level '0' not found in comorb_cat")
       }
       
-      # Step 6: Run Cox model with additional adjustments
-      cox_3b <- coxph(Surv(time_5yr, death_5yr) ~ 
-                        factor(comorb_cat) + 
-                        age + 
-                        factor(female) + 
-                        factor(race) + 
-                        factor(smokestatus) +
-                        factor(Stage.cat) + 
-                        factor(Histology.cat),
-                      data = scrn_lung)
-      results_3b <- broom::tidy(cox_3b, conf.int = TRUE, exponentiate = TRUE)
-      print(results_3b)
+      # Step 6A: Cox model — Table 3B I (Lifetime follow-up)
+      cox_3b_lifetime <- coxph(Surv(survtime, alldth) ~ 
+                                 factor(comorb_cat) + 
+                                 age + 
+                                 factor(female) + 
+                                 factor(race) + 
+                                 factor(smokestatus) +
+                                 factor(Stage.cat) + 
+                                 factor(Histology.cat),
+                               data = scrn_lung)
+      
+      # Step 6B: Cox model — Table 3B II (5-year follow-up)
+      cox_3b_5yr <- coxph(Surv(time_5yr, death_5yr) ~ 
+                            factor(comorb_cat) + 
+                            age + 
+                            factor(female) + 
+                            factor(race) + 
+                            factor(smokestatus) +
+                            factor(Stage.cat) + 
+                            factor(Histology.cat),
+                          data = scrn_lung)
+      
+      results_3b_5yr <- broom::tidy(cox_3b_5yr, conf.int = TRUE, exponentiate = TRUE)
+      results_3b_lifetime <- broom::tidy(cox_3b_lifetime, conf.int = TRUE, exponentiate = TRUE)
+      print(results_3b_lifetime)
+      print(results_3b_5yr)
+
       
 --------------------------------------------------------------------------------
 
 ## Table 4 # Fine and Gray Model (Keep Stage ==  0)
-      # Step 1: Merge lung cancer age from scrn
-        expanded_data <- merge(expanded_data, 
-                               scrn[, c("row_id", "Lung Cancer Age")], 
-                               by = "row_id", all.x = TRUE)
+      # Step 1: Keep only the Lung Cancer Age column from scrn and merge
+      scrn_small <- scrn[, c("row_id", "Lung Cancer Age")]
+      expanded_data <- merge(expanded_data, scrn_small, by = "row_id", all.x = TRUE)
       
-      # Step 2: Define time to diagnosis or censoring (in years)
+      # Step 2: Define follow-up time (lungtime)
+        # - If diagnosed: time = age at dx - entry age
+        # - Else: use survival time (time to death or censoring)
       expanded_data$lungtime <- with(expanded_data,
                                      ifelse(!is.na(`Lung Cancer Age`), `Lung Cancer Age` - age,
-                                            ifelse(!is.na(survtime), survtime, NA)))
+                                            ifelse(!is.na(survtime), survtime, NA))
+      )
       
-      # Step 3: Define competing risk status
-      # 1 = lung cancer diagnosis
-      # 2 = died before dx
-      # 0 = censored and no dx
+      # Step 3: Define event status
+        # 1 = diagnosed with lung cancer
+        # 2 = died before diagnosis (competing risk)
+        # 0 = censored and no diagnosis
       expanded_data$lungstatus <- with(expanded_data,
                                        ifelse(!is.na(`Lung Cancer Age`), 1,
-                                              ifelse(alldth == 1, 2, 0)))
-      # Step 4: Ensure reference level for comorbidity is "0"
+                                              ifelse(alldth == 1, 2, 0))
+      )
+      
+      # Step 4: Relevel comorbidity group so "0" is reference
       expanded_data$comorb_cat <- factor(expanded_data$comorb_cat)
       expanded_data$comorb_cat <- relevel(expanded_data$comorb_cat, ref = "0")
       
-      # Step 5: Create design matrix (drop intercept)
-      covariates_4a <- model.matrix(~ comorb_cat + age + factor(female) + 
-                                      factor(race) + factor(smokestatus),
-                                    data = expanded_data)[, -1]
+      # Step 5: Create covariate matrix for Fine and Gray (remove intercept column)
+      covariates_4 <- model.matrix(~ comorb_cat + age + factor(female) +
+                                     factor(race) + factor(smokestatus),
+                                   data = expanded_data)[, -1]
       
-      # Step 6: Run Fine and Gray model with additional adjustments
-      fg_model_4a <- crr(ftime = expanded_data$lungtime,
-                         fstatus = expanded_data$lungstatus,
-                         cov1 = covariates_4a,
-                         failcode = 1,  # Lung cancer
-                         cencode = 0)   # Censored
-      summary_4a <- summary(fg_model_4a)
-      print(summary_4a)
+      # Step 6: Run the Fine and Gray model
+      fg_model_4 <- crr(ftime = expanded_data$lungtime,
+                        fstatus = expanded_data$lungstatus,
+                        cov1 = covariates_4,
+                        failcode = 1,
+                        cencode = 0)
+      summary_4 <- summary(fg_model_4)
+      print(summary_4)
+      
       
       
   
