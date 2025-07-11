@@ -608,7 +608,7 @@ noscrn <- noscrn %>%
         factor(female) + 
         factor(race) + 
         factor(smokestatus),
-      data = expanded_data)
+        data = expanded_data)
 
       #results_3a_10yr <- tidy(cox_3a_10yr, conf.int = TRUE, exponentiate = TRUE)
       #print(results_3a_10yr)
@@ -685,47 +685,83 @@ noscrn <- noscrn %>%
       
 --------------------------------------------------------------------------------
 
-## Table 4 # Fine and Gray Model (Keep Stage ==  0)
-      # Step 1: Keep only the Lung Cancer Age column from scrn and merge
-      scrn_small <- scrn[, c("row_id", "Lung Cancer Age")]
+## Table 4 # Fine and Gray Model (lifetime vs 5 yr followup)
+      # -----------------------------
+      # Step 0: Exclude overdiagnosed but undetected cases
+      # -----------------------------
+      scrn$exclude_flag <- ifelse(scrn$Overdiagnosis == 1 & scrn$Detected == 0, 1, 0)
+      scrn_clean <- scrn[scrn$exclude_flag == 0 | is.na(scrn$exclude_flag), ]
+      
+      # -----------------------------
+      # Step 1: Merge Lung Cancer Age into expanded_data
+      # -----------------------------
+      scrn_small <- scrn_clean[, c("row_id", "Lung Cancer Age")]
       expanded_data <- merge(expanded_data, scrn_small, by = "row_id", all.x = TRUE)
       
-      # Step 2: Define follow-up time (lungtime)
-        # - If diagnosed: time = age at dx - entry age
-        # - Else: use survival time (time to death or censoring)
-      expanded_data$lungtime <- with(expanded_data,
-                                     ifelse(!is.na(`Lung Cancer Age`), `Lung Cancer Age` - age,
-                                            ifelse(!is.na(survtime), survtime, NA))
+      # -----------------------------
+      # Step 2: Define time and status for Fine & Gray
+      # -----------------------------
+      expanded_data$lungtime_all <- with(expanded_data,
+                                         ifelse(!is.na(`Lung Cancer Age`), `Lung Cancer Age` - `Entry Age`,
+                                                ifelse(!is.na(survtime), survtime, NA))
       )
       
-      # Step 3: Define event status
-        # 1 = diagnosed with lung cancer
-        # 2 = died before diagnosis (competing risk)
-        # 0 = censored and no diagnosis
-      expanded_data$lungstatus <- with(expanded_data,
-                                       ifelse(!is.na(`Lung Cancer Age`), 1,
-                                              ifelse(alldth == 1, 2, 0))
+      expanded_data$lungstatus_all <- with(expanded_data,
+                                           ifelse(!is.na(`Lung Cancer Age`), 1,
+                                                  ifelse(alldth == 1, 2, 0))
       )
       
-      # Step 4: Relevel comorbidity group so "0" is reference
+      # 5-year version
+      expanded_data$lungtime_5yr <- pmin(expanded_data$lungtime_all, 5)
+      expanded_data$lungstatus_5yr <- with(expanded_data,
+                                           ifelse(lungstatus_all == 1 & lungtime_all <= 5, 1,
+                                                  ifelse(lungstatus_all == 2 & lungtime_all <= 5, 2, 0))
+      )
+      
+      # -----------------------------
+      # Step 3: Relevel comorbidity
+      # -----------------------------
       expanded_data$comorb_cat <- factor(expanded_data$comorb_cat)
       expanded_data$comorb_cat <- relevel(expanded_data$comorb_cat, ref = "0")
       
-      # Step 5: Create covariate matrix for Fine and Gray (remove intercept column)
-      covariates_4 <- model.matrix(~ comorb_cat + age + factor(female) +
-                                     factor(race) + factor(smokestatus),
-                                   data = expanded_data)[, -1]
+      # -----------------------------
+      # Step 4: Random sample 50,000 observations
+      # -----------------------------
+      set.seed(2025)  # Reproducible results
+      sample_ids <- sample(nrow(expanded_data), 50000)
+      sample_data <- expanded_data[sample_ids, ]
       
-      # Step 6: Run the Fine and Gray model
-      fg_model_4 <- crr(ftime = expanded_data$lungtime,
-                        fstatus = expanded_data$lungstatus,
-                        cov1 = covariates_4,
-                        failcode = 1,
-                        cencode = 0)
-      summary_4 <- summary(fg_model_4)
-      print(summary_4)
+      # Covariate matrix for sample
+      covariates_sample <- model.matrix(~ comorb_cat + age + factor(female) +
+                                          factor(race) + factor(smokestatus),
+                                        data = sample_data)[, -1]
       
+      # -----------------------------
+      # Step 5A: Fine and Gray model — Lifetime
+      # -----------------------------
+      fg_model_4_lifetime <- crr(ftime = sample_data$lungtime_all,
+                                 fstatus = sample_data$lungstatus_all,
+                                 cov1 = covariates_sample,
+                                 failcode = 1,
+                                 cencode = 0)
       
+      # -----------------------------
+      # Step 5B: Fine and Gray model — 5-Year
+      # -----------------------------
+      fg_model_4_5yr <- crr(ftime = sample_data$lungtime_5yr,
+                            fstatus = sample_data$lungstatus_5yr,
+                            cov1 = covariates_sample,
+                            failcode = 1,
+                            cencode = 0)
+      
+      # -----------------------------
+      # Step 6: Tidy + Print
+      # -----------------------------
+      results_4a_lifetime <- tidy(fg_model_4_lifetime, conf.int = TRUE, exponentiate = TRUE)
+      results_4a_5yr <- tidy(fg_model_4_5yr, conf.int = TRUE, exponentiate = TRUE)
+      
+      print(results_4a_lifetime)
+      print(results_4a_5yr)
       
   
 --------------------------------------------------------------------------------
