@@ -23,6 +23,7 @@ install.packages("survminer")
 library(survminer)
 if (!require("cmprsk")) install.packages("cmprsk")
 library(cmprsk)
+library(purrr)
 
 # --- Load Post-Imputation + Weight-Expanded Dataset ---
 expanded_data <- read_csv("datasets/expanded_data.csv")
@@ -386,35 +387,86 @@ noscrn <- noscrn %>%
     comorb_summary1 <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_1, v)))
     comorb_summary2p <- bind_rows(lapply(comorb_vars, function(v) summarize_comorb(expanded_2p, v)))
   
-  # Had lung cancer during follow-up (<5 years) !!!!!!
+  ### Had lung cancer during follow-up (<5 years) !!!!!!
+    # -------- 1. Define Lung Cancer Within 5-Year Follow-up --------
     scrn <- scrn %>%
       mutate(
-        lc_5yr = ifelse(!is.na(`Lung Cancer Age`) & (`Lung Cancer Age` - `Entry Age`) <= 5, 1, 0)
+        lc_5yr = ifelse(
+          !is.na(`Lung Cancer Age`) &
+            `Lung Cancer Age` != 0 &
+            (`Lung Cancer Age` - `Entry Age`) >= 0 &
+            (`Lung Cancer Age` - `Entry Age`) <= 5,
+          1, 0
+        )
       )
     
     scrn3 <- scrn3 %>%
       mutate(
-        lc_5yr = ifelse(!is.na(`Lung Cancer Age`) & (`Lung Cancer Age` - `Entry Age`) <= 5, 1, 0)
+        lc_5yr = ifelse(
+          !is.na(`Lung Cancer Age`) &
+            `Lung Cancer Age` != 0 &
+            (`Lung Cancer Age` - `Entry Age`) >= 0 &
+            (`Lung Cancer Age` - `Entry Age`) <= 5,
+          1, 0
+        )
       )
     
-    scrn %>%
-      group_by(comorb_cat) %>%
-      summarise(
-        `Total N` = n(),
-        `LC cases (<5 years)` = sum(lc_5yr == 1, na.rm = TRUE),
-        `No LC cases` = sum(lc_5yr == 0, na.rm = TRUE),
-        `LC 5yr Proportion (%)` = round(100 * sum(lc_5yr == 1, na.rm = TRUE) / n(), 2)
-      )
+    # -------- 2. Summary Table Function --------
+    summarize_lc_5yr <- function(data) {
+      data %>%
+        group_by(comorb_cat) %>%
+        summarise(
+          Total = n(),
+          LC_cases = sum(lc_5yr == 1, na.rm = TRUE),
+          No_LC_cases = sum(lc_5yr == 0, na.rm = TRUE),
+          Proportion_LC_5yr = round(100 * LC_cases / Total, 2)
+        ) %>%
+        mutate(
+          `95% CI` = map2(LC_cases, Total, ~ {
+            ci <- prop.test(.x, .y)$conf.int
+            paste0("(", round(100 * ci[1], 2), ", ", round(100 * ci[2], 2), ")")
+          })
+        )
+    }
     
-    scrn3 %>%
-      group_by(comorb_cat) %>%
-      summarise(
-        `Total N` = n(),
-        `LC cases (<5 years)` = sum(lc_5yr == 1, na.rm = TRUE),
-        `No LC cases` = sum(lc_5yr == 0, na.rm = TRUE),
-        `LC 5yr Proportion (%)` = round(100 * sum(lc_5yr == 1, na.rm = TRUE) / n(), 2)
+    # -------- 3. Chi-square Test Function --------
+    run_chi_sq <- function(data) {
+      tbl <- table(data$lc_5yr, data$comorb_cat, useNA = "no")
+      test <- chisq.test(tbl)
+      list(
+        table = tbl,
+        p_value = round(test$p.value, 4),
+        statistic = round(test$statistic, 2),
+        df = test$parameter
       )
-  
+    }
+    
+    # -------- 4. Run for scrn --------
+    cat("===== SCRN Summary =====\n")
+    scrn_summary <- summarize_lc_5yr(scrn)
+    print(scrn_summary)
+    
+    scrn_chi <- run_chi_sq(scrn)
+    cat("Chi-square test for SCRN:\n")
+    print(scrn_chi$table)
+    cat("p-value:", format(scrn_chi$p_value, scientific = TRUE, digits = 3), "\n")
+    cat("Chi-square:", scrn_chi$statistic, "\n")
+    cat("Degrees of freedom:", scrn_chi$df, "\n\n")
+    
+    # -------- 5. Run for scrn3 --------
+    cat("===== SCRN3 Summary =====\n")
+    scrn3_summary <- summarize_lc_5yr(scrn3)
+    print(scrn3_summary)
+    
+    scrn3_chi <- run_chi_sq(scrn3)
+    cat("Chi-square test for SCRN3:\n")
+    print(scrn3_chi$table)
+    cat("p-value:", scrn3_chi$p_value, "\n")
+    cat("Chi-square:", scrn3_chi$statistic, "\n")
+    cat("Degrees of freedom:", scrn3_chi$df, "\n")
+
+    
+    
     # ---- P-values ----
     
     # Function to run ANOVA for continuous variables
@@ -684,34 +736,42 @@ noscrn <- noscrn %>%
 
       
 --------------------------------------------------------------------------------
-
-## Table 4 # Fine and Gray Model (lifetime vs 5 yr followup)
-      # -----------------------------
+## Table 4: Fine and Gray Model — Lung Cancer Diagnosis (Lifetime vs 5-Year)
+      #------------------------------
       # Step 0: Exclude overdiagnosed but undetected cases
       # -----------------------------
       scrn$exclude_flag <- ifelse(scrn$Overdiagnosis == 1 & scrn$Detected == 0, 1, 0)
       scrn_clean <- scrn[scrn$exclude_flag == 0 | is.na(scrn$exclude_flag), ]
       
       # -----------------------------
-      # Step 1: Merge Lung Cancer Age into expanded_data
+      # Step 1: Merge 'Lung Cancer Age' and 'Entry Age' into expanded_data
       # -----------------------------
-      scrn_small <- scrn_clean[, c("row_id", "Lung Cancer Age")]
+      scrn_small <- scrn_clean[, c("row_id", "Lung Cancer Age", "Entry Age")]
+      colnames(scrn_small)[colnames(scrn_small) == "Lung Cancer Age"] <- "lung_cancer_age"
+      colnames(scrn_small)[colnames(scrn_small) == "Entry Age"] <- "entry_age"
+      
+      # Drop old versions if they exist
+      expanded_data <- expanded_data[, !names(expanded_data) %in% c("lung_cancer_age", "entry_age")]
+      
+      # Merge clean variables in
       expanded_data <- merge(expanded_data, scrn_small, by = "row_id", all.x = TRUE)
       
       # -----------------------------
-      # Step 2: Define time and status for Fine & Gray
+      # Step 2: Define time to diagnosis and event status
       # -----------------------------
       expanded_data$lungtime_all <- with(expanded_data,
-                                         ifelse(!is.na(`Lung Cancer Age`), `Lung Cancer Age` - `Entry Age`,
-                                                ifelse(!is.na(survtime), survtime, NA))
+                                         ifelse(!is.na(lung_cancer_age), lung_cancer_age - entry_age,
+                                                ifelse(!is.na(survtime_all), survtime_all, NA))
       )
       
       expanded_data$lungstatus_all <- with(expanded_data,
-                                           ifelse(!is.na(`Lung Cancer Age`), 1,
-                                                  ifelse(alldth == 1, 2, 0))
+                                           ifelse(!is.na(lung_cancer_age), 1,
+                                                  ifelse(alldth_all == 1, 2, 0))
       )
       
-      # 5-year version
+      # -----------------------------
+      # Step 3: Define 5-year version
+      # -----------------------------
       expanded_data$lungtime_5yr <- pmin(expanded_data$lungtime_all, 5)
       expanded_data$lungstatus_5yr <- with(expanded_data,
                                            ifelse(lungstatus_all == 1 & lungtime_all <= 5, 1,
@@ -719,43 +779,49 @@ noscrn <- noscrn %>%
       )
       
       # -----------------------------
-      # Step 3: Relevel comorbidity
+      # Step 4: Relevel comorbidity reference group
       # -----------------------------
       expanded_data$comorb_cat <- factor(expanded_data$comorb_cat)
       expanded_data$comorb_cat <- relevel(expanded_data$comorb_cat, ref = "0")
       
       # -----------------------------
-      # Step 4: Random sample 50,000 observations
+      # Step 5: Randomly sample 50,000 rows for performance
       # -----------------------------
-      set.seed(2025)  # Reproducible results
+      set.seed(2025)
       sample_ids <- sample(nrow(expanded_data), 50000)
       sample_data <- expanded_data[sample_ids, ]
       
-      # Covariate matrix for sample
+      # -----------------------------
+      # Step 6: Create covariate matrix
+      # -----------------------------
       covariates_sample <- model.matrix(~ comorb_cat + age + factor(female) +
                                           factor(race) + factor(smokestatus),
                                         data = sample_data)[, -1]
       
       # -----------------------------
-      # Step 5A: Fine and Gray model — Lifetime
+      # Step 7A: Fine and Gray model — Lifetime
       # -----------------------------
-      fg_model_4_lifetime <- crr(ftime = sample_data$lungtime_all,
-                                 fstatus = sample_data$lungstatus_all,
-                                 cov1 = covariates_sample,
-                                 failcode = 1,
-                                 cencode = 0)
+      fg_model_4_lifetime <- crr(
+        ftime = sample_data$lungtime_all,
+        fstatus = sample_data$lungstatus_all,
+        cov1 = covariates_sample,
+        failcode = 1,
+        cencode = 0
+      )
       
       # -----------------------------
-      # Step 5B: Fine and Gray model — 5-Year
+      # Step 7B: Fine and Gray model — 5-Year
       # -----------------------------
-      fg_model_4_5yr <- crr(ftime = sample_data$lungtime_5yr,
-                            fstatus = sample_data$lungstatus_5yr,
-                            cov1 = covariates_sample,
-                            failcode = 1,
-                            cencode = 0)
+      fg_model_4_5yr <- crr(
+        ftime = sample_data$lungtime_5yr,
+        fstatus = sample_data$lungstatus_5yr,
+        cov1 = covariates_sample,
+        failcode = 1,
+        cencode = 0
+      )
       
       # -----------------------------
-      # Step 6: Tidy + Print
+      # Step 8: Tidy and print results
       # -----------------------------
       results_4a_lifetime <- tidy(fg_model_4_lifetime, conf.int = TRUE, exponentiate = TRUE)
       results_4a_5yr <- tidy(fg_model_4_5yr, conf.int = TRUE, exponentiate = TRUE)
